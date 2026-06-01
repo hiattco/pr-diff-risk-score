@@ -70,6 +70,14 @@ describe("scorePullRequest", () => {
     expect(result.reviewerAreas).toEqual(["security-team"]);
   });
 
+  it("treats exact auth module files as sensitive", () => {
+    const result = scorePullRequest([file({ filename: "src/auth.ts" })]);
+
+    expect(result.score).toBe(6);
+    expect(result.drivers.map((driver) => driver.key)).toEqual(expect.arrayContaining(["sensitiveTouched", "noTestsChanged"]));
+    expect(result.reviewerAreas).toEqual(["backend/security"]);
+  });
+
   it("recognizes test-only PRs", () => {
     const result = scorePullRequest([file({ filename: "tests/riskScorer.test.ts" })]);
 

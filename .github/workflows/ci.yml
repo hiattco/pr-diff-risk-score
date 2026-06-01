@@ -26,12 +26,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: write
-      issues: write
+      pull-requests: read
     steps:
       - uses: actions/checkout@v6
       - uses: ./
         with:
           github-token: ${{ github.token }}
-          comment-mode: ${{ github.event.pull_request.head.repo.full_name == github.repository && 'update' || 'off' }}
+          comment-mode: off
           fail-threshold: "0"

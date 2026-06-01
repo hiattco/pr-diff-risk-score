@@ -27946,7 +27946,7 @@ var defaultConfig = {
     database: ["**/migrations/**", "**/migration/**", "**/schema.sql", "**/schema.prisma", "**/db/**", "**/database/**"],
     devops: [".github/workflows/**", "Dockerfile", "docker-compose.yml", "deploy/**", "infra/**", "terraform/**"],
     frontend: ["**/*.tsx", "**/*.jsx", "src/components/**", "app/**", "pages/**", "frontend/**", "web/**"],
-    generated: ["dist/**", "build/**", "generated/**", "**/*.generated.*", "**/*.min.js", "**/*.lock"]
+    generated: ["dist/**", "build/**", "generated/**", "**/*.generated.*", "**/*.min.{js,css}", "**/*.lock"]
   },
   reviewers: {
     auth: ["backend/security"],

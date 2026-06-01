@@ -1,0 +1,28 @@
+name: PR Diff Risk Score
+description: Score pull request diff risk and comment reviewer guidance.
+author: Kyle Hiatt
+inputs:
+  github-token:
+    description: GitHub token used to read PR files and write comments.
+    required: true
+    default: ${{ github.token }}
+  fail-threshold:
+    description: Fail the action when the risk score is greater than or equal to this value. Use 0 to disable.
+    required: false
+    default: "0"
+  comment-mode:
+    description: Comment behavior. One of update, new, or off.
+    required: false
+    default: update
+  config-path:
+    description: Path to an optional YAML configuration file.
+    required: false
+    default: .github/pr-risk-score.yml
+outputs:
+  risk-score:
+    description: The computed risk score from 1 to 10.
+  risk-level:
+    description: The computed risk level.
+runs:
+  using: node20
+  main: dist/index.js

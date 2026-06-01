@@ -78,6 +78,13 @@ describe("scorePullRequest", () => {
     expect(result.reviewerAreas).toEqual(["backend/security"]);
   });
 
+  it("flags minified bundle assets as generated-looking", () => {
+    const result = scorePullRequest([file({ filename: "public/assets/app.min.css", additions: 80, deletions: 5 })]);
+
+    expect(result.score).toBe(5);
+    expect(result.drivers.map((driver) => driver.key)).toEqual(expect.arrayContaining(["generatedTouched", "noTestsChanged"]));
+  });
+
   it("recognizes test-only PRs", () => {
     const result = scorePullRequest([file({ filename: "tests/riskScorer.test.ts" })]);
 

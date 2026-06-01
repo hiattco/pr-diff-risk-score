@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: kylehiatt/pr-diff-risk-score@v1
+      - uses: hiattco/pr-diff-risk-score@v1
         with:
           github-token: ${{ github.token }}
           fail-threshold: "0"

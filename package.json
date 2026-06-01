@@ -20,12 +20,12 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kylehiatt/pr-diff-risk-score.git"
+    "url": "git+https://github.com/hiattco/pr-diff-risk-score.git"
   },
   "bugs": {
-    "url": "https://github.com/kylehiatt/pr-diff-risk-score/issues"
+    "url": "https://github.com/hiattco/pr-diff-risk-score/issues"
   },
-  "homepage": "https://github.com/kylehiatt/pr-diff-risk-score#readme",
+  "homepage": "https://github.com/hiattco/pr-diff-risk-score#readme",
   "dependencies": {
     "@actions/core": "^1.11.1",
     "@actions/github": "^9.1.1",

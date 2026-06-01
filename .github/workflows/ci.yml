@@ -33,5 +33,5 @@ jobs:
       - uses: ./
         with:
           github-token: ${{ github.token }}
-          comment-mode: update
+          comment-mode: ${{ github.event.pull_request.head.repo.full_name == github.repository && 'update' || 'off' }}
           fail-threshold: "0"

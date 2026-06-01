@@ -15,20 +15,26 @@ on:
 
 permissions:
   contents: read
-  pull-requests: read
+  pull-requests: write
   issues: write
 
 jobs:
   risk-score:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
       - uses: hiattco/pr-diff-risk-score@v0.1.0
         with:
           github-token: ${{ github.token }}
           fail-threshold: "0"
           comment-mode: update
 ```
+
+The action posts or updates PR comments when `comment-mode` is `update` or `new` and the workflow token has `issues: write` plus `pull-requests: write`.
+
+For open-source repositories, do not run unreviewed PR-local action code with write permissions. A safe dogfood pattern is:
+
+- Use a trusted ref such as a release tag or a protected branch for the commenting job.
+- Run PR-local action code separately with `comment-mode: off` and read-only permissions.
 
 ## Comment Output
 

@@ -5,3 +5,4 @@ lib/
 .env
 .env.*
 npm-debug.log*
+CONTINUITY.md

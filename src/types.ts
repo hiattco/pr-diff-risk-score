@@ -80,6 +80,7 @@ export interface RiskResult {
   score: number;
   level: RiskLevel;
   drivers: RiskDriver[];
+  recommendedLabels: string[];
   reviewerAreas: string[];
   reviewGuidance: string[];
   stats: {

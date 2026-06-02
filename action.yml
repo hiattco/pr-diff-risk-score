@@ -1,5 +1,5 @@
-name: PR Diff Risk Score
-description: Score pull request diff risk and comment reviewer guidance.
+name: PR Diff Review Quality Risk Score
+description: Score pull request diff review-risk signals and comment reviewer guidance.
 author: Kyle Hiatt
 inputs:
   github-token:

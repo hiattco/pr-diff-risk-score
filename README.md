@@ -1,8 +1,8 @@
 # PR Diff Risk Score
 
-`pr-diff-risk-score` is a GitHub Action that analyzes a pull request diff and comments with a 1-10 risk score, the main risk drivers, suggested reviewer areas, and short review guidance.
+`pr-diff-risk-score` is a GitHub Action that analyzes a pull request diff and comments with a 1-10 review-quality risk score, the main review-risk drivers, suggested reviewer areas, and short review guidance.
 
-It is designed to help reviewers quickly spot risky PRs, especially in repositories where AI-generated or agent-authored changes are common.
+It is designed to help reviewers spot review-quality risk patterns from diff signals (for example, sensitive path changes, missing tests, or bundled/generated files) before review work starts.
 
 ## Usage
 

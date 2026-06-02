@@ -23,6 +23,8 @@ outputs:
     description: The computed risk score from 1 to 10.
   risk-level:
     description: The computed risk level.
+  json:
+    description: JSON object with full risk computation result.
 runs:
   using: node24
   main: dist/index.js

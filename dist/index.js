@@ -29919,6 +29919,30 @@ function scorePullRequest(files, config = defaultConfig) {
   };
 }
 
+// src/output.ts
+function serializeRiskResult(result) {
+  const orderedDrivers = result.drivers.map((driver) => ({
+    key: driver.key,
+    label: driver.label,
+    points: driver.points
+  }));
+  const orderedStats = {
+    filesChanged: result.stats.filesChanged,
+    totalChanges: result.stats.totalChanges,
+    deletedFiles: result.stats.deletedFiles,
+    testsChanged: result.stats.testsChanged
+  };
+  const orderedResult = {
+    score: result.score,
+    level: result.level,
+    drivers: orderedDrivers,
+    reviewerAreas: result.reviewerAreas,
+    reviewGuidance: result.reviewGuidance,
+    stats: orderedStats
+  };
+  return JSON.stringify(orderedResult);
+}
+
 // src/index.ts
 function parseFailThreshold(value) {
   const parsed = Number(value);
@@ -29959,6 +29983,7 @@ async function run() {
   const comment = renderRiskComment(result);
   core.setOutput("risk-score", String(result.score));
   core.setOutput("risk-level", result.level);
+  core.setOutput("json", serializeRiskResult(result));
   core.info(comment);
   if (commentMode === "update") {
     const operation = await updateRiskComment(octokit, prContext, comment);

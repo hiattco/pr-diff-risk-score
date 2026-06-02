@@ -7,6 +7,7 @@ import { renderRiskComment } from "./comment";
 import { getPullRequestContext, listChangedFiles, updateRiskComment, createRiskComment } from "./github";
 import { mergeConfig } from "./rules";
 import { scorePullRequest } from "./riskScorer";
+import { serializeRiskResult } from "./output";
 import type { CommentMode, PartialRiskConfig } from "./types";
 
 function parseFailThreshold(value: string): number {
@@ -55,6 +56,7 @@ export async function run(): Promise<void> {
 
   core.setOutput("risk-score", String(result.score));
   core.setOutput("risk-level", result.level);
+  core.setOutput("json", serializeRiskResult(result));
   core.info(comment);
 
   if (commentMode === "update") {

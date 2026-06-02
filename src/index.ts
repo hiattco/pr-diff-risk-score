@@ -58,7 +58,10 @@ export async function run(): Promise<void> {
   core.info(`Using judge mode: ${judgeMode}.`);
 
   core.setOutput("risk-score", String(result.score));
+  core.setOutput("slop-score", String(result.slopScore));
+  core.setOutput("overall-score", String(result.overallScore));
   core.setOutput("risk-level", result.level);
+  core.setOutput("risk-labels", result.recommendedLabels.join(","));
   core.info(comment);
 
   if (commentMode === "update") {

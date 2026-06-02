@@ -26,6 +26,12 @@ outputs:
     description: The computed risk score from 1 to 10.
   risk-level:
     description: The computed risk level.
+  slop-score:
+    description: The computed review-quality / slop score from 1 to 10.
+  overall-score:
+    description: The max combined review burden score from 1 to 10.
+  risk-labels:
+    description: Comma-separated recommended labels for review workflows.
 runs:
   using: node24
   main: dist/index.js

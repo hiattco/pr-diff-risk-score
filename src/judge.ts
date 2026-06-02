@@ -8,7 +8,7 @@ export function parseJudgeMode(value: string): JudgeMode {
   throw new Error("mode must be one of: heuristic, llm, hybrid.");
 }
 
-export function resolveJudgeMode(actionModeInput: string, configMode: JudgeMode, config: RiskConfig): JudgeMode {
+export function resolveJudgeMode(actionModeInput: string, configMode: string, config: RiskConfig): JudgeMode {
   const mode = actionModeInput ? parseJudgeMode(actionModeInput) : parseJudgeMode(configMode);
 
   if (mode === "heuristic") {

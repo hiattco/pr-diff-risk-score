@@ -4,7 +4,7 @@
 
 It is designed to help reviewers quickly spot risky PRs, especially in repositories where AI-generated or agent-authored changes are common.
 
-## Usage
+## Quick Start
 
 ```yaml
 name: PR Risk Score
@@ -27,9 +27,19 @@ jobs:
           github-token: ${{ github.token }}
           fail-threshold: "0"
           comment-mode: update
+          mode: heuristic
 ```
 
-The action posts or updates PR comments when `comment-mode` is `update` or `new` and the workflow token has `issues: write` plus `pull-requests: write`.
+Add this workflow to `.github/workflows/pr-risk-score.yml`. The action posts or updates PR comments when `comment-mode` is `update` or `new` and the workflow token has `issues: write` plus `pull-requests: write`.
+
+Use `fail-threshold: "0"` to report risk without failing the workflow. Set it to `7`, for example, when high-risk PRs should fail CI.
+
+## Permissions And Safe Setup
+
+The workflow needs:
+
+- `contents: read` to inspect repository files.
+- `pull-requests: write` and `issues: write` to create or update the PR comment.
 
 For open-source repositories, do not run unreviewed PR-local action code with write permissions. A safe dogfood pattern is:
 
@@ -43,11 +53,22 @@ The action posts or updates a PR comment like:
 ```text
 Risk score: 7/10
 Risk level: High
+Review-quality score: 5/10
+Overall score: 7/10
 
 Main drivers:
 - Database migration changed
 - No tests updated
 - Auth middleware touched
+
+Review-quality drivers:
+- No tests updated
+
+Recommended labels:
+- risk:high
+- needs-tests
+- needs-context
+- review-carefully
 
 Suggested reviewer area:
 - backend/security
@@ -66,6 +87,9 @@ Review guidance:
 | `fail-threshold` | No | `0` | Fails the action when the risk score is greater than or equal to this value. `0` disables failure. |
 | `comment-mode` | No | `update` | `update` updates the previous bot comment, `new` always creates a new comment, and `off` only logs output. |
 | `config-path` | No | `.github/pr-risk-score.yml` | Optional YAML config file path. |
+| `mode` | No | `heuristic` | Judge mode. One of `heuristic`, `llm`, or `hybrid`. |
+
+`heuristic` is the implemented default. `llm` and `hybrid` are scaffolded for future provider work. When `llm.enabled` is `false`, requesting `llm` or `hybrid` logs a warning and falls back to `heuristic`. When `llm.enabled` is `true`, `llm` and `hybrid` fail with a clear "not implemented" error.
 
 ## Scoring
 
@@ -107,13 +131,21 @@ The action suggests reviewer areas from the strongest matching signals:
 
 ## Configuration
 
-Create `.github/pr-risk-score.yml` to override weights, thresholds, path patterns, or reviewer mappings.
+Create `.github/pr-risk-score.yml` to override weights, thresholds, path patterns, reviewer mappings, or judge-mode defaults.
 
 ```yaml
 weights:
   noTestsChanged: 2
   migrationTouched: 3
   sensitiveTouched: 3
+
+mode: heuristic
+llm:
+  enabled: false
+  provider: openai
+  model: gpt-4o
+  maxDiffChars: 6000
+  requireJson: true
 
 reviewers:
   auth:
@@ -131,15 +163,20 @@ patterns:
     - "tests/**"
 ```
 
+Action inputs take precedence over config defaults. For example, `with: { mode: heuristic }` keeps the action in heuristic mode even if the config file sets another mode.
+
 ## Development
 
 ```bash
 npm install
 npm test
 npm run build
+npm run ci
 ```
 
-`npm run build` type-checks the TypeScript source and bundles the action into `dist/index.js`.
+`npm run build` type-checks the TypeScript source and bundles the action into `dist/index.js`. `npm run ci` runs typecheck, tests, and build in the same order used by CI.
+
+When changing `src/**`, commit the regenerated `dist/index.js` and `dist/index.js.map` files. GitHub Actions run the bundled `dist/index.js`, not the TypeScript source.
 
 ## License
 

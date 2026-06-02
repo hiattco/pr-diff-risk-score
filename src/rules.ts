@@ -92,6 +92,14 @@ export const defaultConfig: RiskConfig = {
     frontend: ["frontend"],
     testOnly: ["standard-review"],
     default: ["codeowners/default"]
+  },
+  mode: "heuristic",
+  llm: {
+    enabled: false,
+    provider: "openai",
+    model: "gpt-4o",
+    maxDiffChars: 6000,
+    requireJson: true
   }
 };
 
@@ -104,7 +112,9 @@ export function mergeConfig(partial?: PartialRiskConfig): RiskConfig {
     weights: { ...defaultConfig.weights, ...partial.weights },
     thresholds: { ...defaultConfig.thresholds, ...partial.thresholds },
     patterns: { ...defaultConfig.patterns, ...partial.patterns },
-    reviewers: { ...defaultConfig.reviewers, ...partial.reviewers }
+    reviewers: { ...defaultConfig.reviewers, ...partial.reviewers },
+    mode: partial.mode ?? defaultConfig.mode,
+    llm: { ...defaultConfig.llm, ...partial.llm }
   };
 }
 

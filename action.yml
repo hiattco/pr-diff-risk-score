@@ -18,6 +18,9 @@ inputs:
     description: Path to an optional YAML configuration file.
     required: false
     default: .github/pr-risk-score.yml
+  mode:
+    description: Risk judge mode. One of heuristic, llm, or hybrid.
+    required: false
 outputs:
   risk-score:
     description: The computed risk score from 1 to 10.

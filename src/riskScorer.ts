@@ -49,6 +49,10 @@ function unique(values: string[]): string[] {
   return Array.from(new Set(values));
 }
 
+function baseScoreFromDrivers(drivers: RiskDriver[]): number {
+  return drivers.reduce((sum, driver) => sum + driver.points, 0);
+}
+
 function buildReviewGuidance(drivers: RiskDriver[], reviewerAreas: string[]): string[] {
   const keys = new Set(drivers.map((driver) => driver.key));
   const guidance: string[] = [];
@@ -140,42 +144,66 @@ function reviewerAreasForFiles(files: ChangedFile[], config: RiskConfig, testsCh
   return unique(areas.length > 0 ? areas : config.reviewers.default);
 }
 
-export function scorePullRequest(files: ChangedFile[], config: RiskConfig = defaultConfig): RiskResult {
+function buildDrivers(
+  files: ChangedFile[],
+  config: RiskConfig,
+  testsChanged: boolean,
+  deletedFiles: number,
+  includeReviewerSignals: boolean
+): RiskDriver[] {
   const drivers: RiskDriver[] = [];
   const totalChanges = files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
-  const deletedFiles = files.filter((file) => file.status === "removed").length;
-  const testsChanged = files.some((file) => matchesAny(file.filename, config.patterns.tests));
 
   addDriver(drivers, "filesChanged", `${files.length} files changed`, fileCountPoints(files.length, config));
   addDriver(drivers, "linesChanged", `${totalChanges} total line changes`, lineCountPoints(totalChanges, config));
 
-  if (files.some((file) => matchesAny(file.filename, config.patterns.config))) {
-    addDriver(drivers, "configTouched", "Configuration or dependency file changed", config.weights.configTouched);
-  }
-  if (files.some((file) => matchesAny(file.filename, config.patterns.migrations))) {
-    addDriver(drivers, "migrationTouched", "Database or migration file changed", config.weights.migrationTouched);
-  }
   if (!testsChanged) {
     addDriver(drivers, "noTestsChanged", "No tests changed", config.weights.noTestsChanged);
   }
-  if (files.some((file) => matchesAny(file.filename, config.patterns.sensitive))) {
-    addDriver(drivers, "sensitiveTouched", "Sensitive auth, payment, privacy, or data area touched", config.weights.sensitiveTouched);
-  }
   if (files.some((file) => looksGenerated(file, config))) {
-    addDriver(drivers, "generatedTouched", "Generated-looking or bundled files changed", config.weights.generatedTouched);
+    addDriver(drivers, "generatedTouched", "Generated-looking or bundled files changed", includeReviewerSignals ? config.weights.generatedTouched : Math.floor(config.weights.generatedTouched / 2));
   }
-  addDriver(drivers, deletedFiles >= 5 ? "manyDeletedFiles" : "deletedFiles", `${deletedFiles} files deleted`, deletedFilePoints(deletedFiles, config));
+  if (deletedFiles > 0) {
+    const deletedPointValue = includeReviewerSignals ? deletedFilePoints(deletedFiles, config) : Math.floor(deletedFilePoints(deletedFiles, config) / 2);
+    addDriver(drivers, deletedFiles >= 5 ? "manyDeletedFiles" : "deletedFiles", `${deletedFiles} files deleted`, deletedPointValue);
+  }
 
-  const score = clampScore(1 + drivers.reduce((sum, driver) => sum + driver.points, 0));
+  if (includeReviewerSignals) {
+    if (files.some((file) => matchesAny(file.filename, config.patterns.config))) {
+      addDriver(drivers, "configTouched", "Configuration or dependency file changed", config.weights.configTouched);
+    }
+    if (files.some((file) => matchesAny(file.filename, config.patterns.migrations))) {
+      addDriver(drivers, "migrationTouched", "Database or migration file changed", config.weights.migrationTouched);
+    }
+    if (files.some((file) => matchesAny(file.filename, config.patterns.sensitive))) {
+      addDriver(drivers, "sensitiveTouched", "Sensitive auth, payment, privacy, or data area touched", config.weights.sensitiveTouched);
+    }
+  }
+
+  return drivers;
+}
+
+export function scorePullRequest(files: ChangedFile[], config: RiskConfig = defaultConfig): RiskResult {
+  const totalChanges = files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
+  const deletedFiles = files.filter((file) => file.status === "removed").length;
+  const testsChanged = files.some((file) => matchesAny(file.filename, config.patterns.tests));
+
+  const drivers = buildDrivers(files, config, testsChanged, deletedFiles, true);
+  const reviewQualityDrivers = buildDrivers(files, config, testsChanged, deletedFiles, false);
+  const score = clampScore(1 + baseScoreFromDrivers(drivers));
+  const slopScore = clampScore(1 + baseScoreFromDrivers(reviewQualityDrivers));
   const reviewerAreas = reviewerAreasForFiles(files, config, testsChanged);
   const level = riskLevelForScore(score, config);
   const recommendedLabels = buildRecommendedLabels(level, files.length, totalChanges, deletedFiles, drivers);
 
   return {
     score,
+    slopScore,
+    overallScore: Math.max(score, slopScore),
     level,
     recommendedLabels,
     drivers,
+    slopDrivers: reviewQualityDrivers,
     reviewerAreas,
     reviewGuidance: buildReviewGuidance(drivers, reviewerAreas),
     stats: {

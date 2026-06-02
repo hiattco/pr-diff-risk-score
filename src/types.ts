@@ -52,6 +52,7 @@ export interface LlmConfig {
   enabled?: boolean;
   provider?: string;
   model?: string;
+  baseUrl?: string;
   maxDiffChars?: number;
   requireJson?: boolean;
 }
@@ -106,4 +107,13 @@ export interface RiskResult {
     deletedFiles: number;
     testsChanged: boolean;
   };
+}
+
+export interface LlmAssessment {
+  score: number;
+  level?: RiskLevel;
+  summary?: string;
+  reviewGuidance: string[];
+  recommendedLabels: string[];
+  reviewerAreas: string[];
 }

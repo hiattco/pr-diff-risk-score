@@ -89,7 +89,51 @@ Review guidance:
 | `config-path` | No | `.github/pr-risk-score.yml` | Optional YAML config file path. |
 | `mode` | No | `heuristic` | Judge mode. One of `heuristic`, `llm`, or `hybrid`. |
 
-`heuristic` is the implemented default. `llm` and `hybrid` are scaffolded for future provider work. When `llm.enabled` is `false`, requesting `llm` or `hybrid` logs a warning and falls back to `heuristic`. When `llm.enabled` is `true`, `llm` and `hybrid` fail with a clear "not implemented" error.
+`heuristic` is the default. `llm` and `hybrid` call an OpenAI-compatible chat completion endpoint when `llm.enabled` is `true`. When `llm.enabled` is `false`, requesting `llm` or `hybrid` logs a warning and falls back to `heuristic`.
+
+## OpenRouter LLM Mode
+
+The LLM path uses the OpenAI-compatible `/chat/completions` API. For OpenRouter, set the base URL and API key through workflow environment variables:
+
+```yaml
+name: PR Risk Score
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  risk-score:
+    runs-on: ubuntu-latest
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENAI_BASE_URL: https://openrouter.ai/api/v1
+    steps:
+      - uses: hiattco/pr-diff-risk-score@v0.1.0
+        with:
+          github-token: ${{ github.token }}
+          comment-mode: update
+          mode: hybrid
+```
+
+Use this config at `.github/pr-risk-score.yml`:
+
+```yaml
+mode: hybrid
+llm:
+  enabled: true
+  provider: openai
+  model: moonshotai/kimi-k2.6:free
+  maxDiffChars: 6000
+  requireJson: true
+```
+
+For OpenAI directly, set `OPENAI_API_KEY` and omit `OPENAI_BASE_URL`, or set `llm.baseUrl` in config. Do not commit API keys; store them as GitHub Actions secrets.
 
 ## Scoring
 
@@ -144,6 +188,7 @@ llm:
   enabled: false
   provider: openai
   model: gpt-4o
+  baseUrl: https://openrouter.ai/api/v1
   maxDiffChars: 6000
   requireJson: true
 
@@ -177,6 +222,22 @@ npm run ci
 `npm run build` type-checks the TypeScript source and bundles the action into `dist/index.js`. `npm run ci` runs typecheck, tests, and build in the same order used by CI.
 
 When changing `src/**`, commit the regenerated `dist/index.js` and `dist/index.js.map` files. GitHub Actions run the bundled `dist/index.js`, not the TypeScript source.
+
+### Testing LLM Mode
+
+Run the mocked OpenAI-compatible endpoint tests:
+
+```bash
+npm test -- tests/llm.test.ts
+```
+
+Run the full CI gate and regenerate the bundled action:
+
+```bash
+npm run ci
+```
+
+To test against OpenRouter from a workflow, add `OPENROUTER_API_KEY` as a repository secret, set `OPENAI_BASE_URL: https://openrouter.ai/api/v1`, set `mode: hybrid` or `mode: llm`, and use the LLM config shown above.
 
 ## License
 

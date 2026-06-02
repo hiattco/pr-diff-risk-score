@@ -4,7 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
 import { renderRiskComment } from "./comment";
-import { getPullRequestContext, listChangedFiles, updateRiskComment, createRiskComment } from "./github";
+import { getPullRequestContext, getPullRequestMetadata, listChangedFiles, updateRiskComment, createRiskComment } from "./github";
 import { mergeConfig } from "./rules";
 import { scorePullRequest } from "./riskScorer";
 import type { CommentMode, PartialRiskConfig } from "./types";
@@ -50,7 +50,8 @@ export async function run(): Promise<void> {
   const prContext = getPullRequestContext();
   const config = mergeConfig(loadConfig(configPath));
   const files = await listChangedFiles(octokit, prContext);
-  const result = scorePullRequest(files, config);
+  const metadata = await getPullRequestMetadata(octokit, prContext);
+  const result = scorePullRequest(files, config, metadata);
   const comment = renderRiskComment(result);
 
   core.setOutput("risk-score", String(result.score));

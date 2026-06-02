@@ -27834,6 +27834,26 @@ async function listChangedFiles(octokit, context3) {
     patch: file.patch
   }));
 }
+function extractMetadata(raw) {
+  return {
+    title: raw.title ?? "PR title not found",
+    body: raw.body ?? "",
+    authorAssociation: raw.author_association ?? "UNKNOWN",
+    labels: (raw.labels ?? []).map((label) => label.name).filter((name) => Boolean(name)),
+    additions: raw.additions ?? 0,
+    deletions: raw.deletions ?? 0,
+    changedFiles: raw.changed_files ?? 0,
+    commits: raw.commits ?? 1
+  };
+}
+async function getPullRequestMetadata(octokit, context3) {
+  const pull = await octokit.rest.pulls.get({
+    owner: context3.owner,
+    repo: context3.repo,
+    pull_number: context3.pullNumber
+  });
+  return extractMetadata(pull.data);
+}
 async function createRiskComment(octokit, context3, body) {
   await octokit.rest.issues.createComment({
     owner: context3.owner,
@@ -27878,7 +27898,11 @@ var defaultConfig = {
     sensitiveTouched: 3,
     generatedTouched: 2,
     deletedFiles: 1,
-    manyDeletedFiles: 2
+    manyDeletedFiles: 2,
+    weakTitle: 1,
+    emptyOrVagueDescription: 1,
+    manyCommits: 1,
+    largeDiffWithoutExplanation: 1
   },
   thresholds: {
     lowMax: 3,
@@ -29826,6 +29850,41 @@ function looksGenerated(file, config) {
 function unique(values) {
   return Array.from(new Set(values));
 }
+function normalizeMetadata(metadata) {
+  const defaultTitle = "PR metadata not collected";
+  const defaultBody = "PR description was not collected for scoring.";
+  return {
+    title: defaultTitle,
+    body: defaultBody,
+    authorAssociation: "UNKNOWN",
+    labels: [],
+    additions: 0,
+    deletions: 0,
+    changedFiles: 0,
+    commits: 1,
+    ...metadata
+  };
+}
+function isWeakTitle(title) {
+  const trimmed = title.trim().toLowerCase();
+  if (trimmed.length <= 8) {
+    return true;
+  }
+  return /^(chore|fix|update|hotfix|wip|feat|test|refactor|bugfix|release)(\s+#?\d+)?$/.test(trimmed);
+}
+function isVagueBody(body) {
+  const normalized = body.replace(/\r/g, "").trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  if (normalized.length < 20) {
+    return true;
+  }
+  return /^(n\/a|none|tbd|todo|wip)$/.test(normalized) || /^(updating|update|chore)$/.test(normalized);
+}
+function hasExplanation(metadata) {
+  return !isWeakTitle(metadata.title) && !isVagueBody(metadata.body);
+}
 function buildReviewGuidance(drivers, reviewerAreas) {
   const keys = new Set(drivers.map((driver) => driver.key));
   const guidance = [];
@@ -29879,13 +29938,23 @@ function reviewerAreasForFiles(files, config, testsChanged) {
   }
   return unique(areas.length > 0 ? areas : config.reviewers.default);
 }
-function scorePullRequest(files, config = defaultConfig) {
+function scorePullRequest(files, config = defaultConfig, metadata) {
+  const prMetadata = normalizeMetadata(metadata);
   const drivers = [];
   const totalChanges = files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
   const deletedFiles = files.filter((file) => file.status === "removed").length;
   const testsChanged = files.some((file) => matchesAny(file.filename, config.patterns.tests));
   addDriver(drivers, "filesChanged", `${files.length} files changed`, fileCountPoints(files.length, config));
   addDriver(drivers, "linesChanged", `${totalChanges} total line changes`, lineCountPoints(totalChanges, config));
+  addDriver(drivers, "weakTitle", `PR title is weak (${prMetadata.title})`, config.weights.weakTitle * (isWeakTitle(prMetadata.title) ? 1 : 0));
+  addDriver(drivers, "emptyOrVagueDescription", "PR description is empty or vague", config.weights.emptyOrVagueDescription * (isVagueBody(prMetadata.body) ? 1 : 0));
+  addDriver(drivers, "manyCommits", `${prMetadata.commits} commits`, config.weights.manyCommits * (prMetadata.commits >= 10 ? 1 : 0));
+  addDriver(
+    drivers,
+    "largeDiffWithoutExplanation",
+    "Large diff changed with little explanation",
+    config.weights.largeDiffWithoutExplanation * (prMetadata.changedFiles >= 30 && !hasExplanation(prMetadata) ? 1 : 0)
+  );
   if (files.some((file) => matchesAny(file.filename, config.patterns.config))) {
     addDriver(drivers, "configTouched", "Configuration or dependency file changed", config.weights.configTouched);
   }
@@ -29955,7 +30024,8 @@ async function run() {
   const prContext = getPullRequestContext();
   const config = mergeConfig(loadConfig(configPath));
   const files = await listChangedFiles(octokit, prContext);
-  const result = scorePullRequest(files, config);
+  const metadata = await getPullRequestMetadata(octokit, prContext);
+  const result = scorePullRequest(files, config, metadata);
   const comment = renderRiskComment(result);
   core.setOutput("risk-score", String(result.score));
   core.setOutput("risk-level", result.level);

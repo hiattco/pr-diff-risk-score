@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { mergeConfig } from "../src/rules";
 import { scorePullRequest } from "../src/riskScorer";
-import type { ChangedFile } from "../src/types";
+import type { ChangedFile, PullRequestMetadata } from "../src/types";
 
 function file(overrides: Partial<ChangedFile>): ChangedFile {
   return {
@@ -10,6 +10,20 @@ function file(overrides: Partial<ChangedFile>): ChangedFile {
     additions: 10,
     deletions: 5,
     changes: 15,
+    ...overrides
+  };
+}
+
+function metadata(overrides: Partial<PullRequestMetadata>): PullRequestMetadata {
+  return {
+    title: "Improve billing flow",
+    body: "Add detailed migration notes and tests for new checkout path.",
+    authorAssociation: "MEMBER",
+    labels: ["feature"],
+    additions: 120,
+    deletions: 4,
+    changedFiles: 2,
+    commits: 1,
     ...overrides
   };
 }
@@ -90,5 +104,49 @@ describe("scorePullRequest", () => {
 
     expect(result.score).toBe(1);
     expect(result.reviewerAreas).toEqual(["standard-review"]);
+  });
+
+  it("penalizes weak PR titles", () => {
+    const result = scorePullRequest(
+      [file({ filename: "src/app.ts" }), file({ filename: "tests/app.test.ts" })],
+      undefined,
+      metadata({ title: "Update" })
+    );
+
+    expect(result.score).toBe(2);
+    expect(result.drivers.map((driver) => driver.key)).toEqual(expect.arrayContaining(["weakTitle"]));
+  });
+
+  it("penalizes empty or vague PR descriptions", () => {
+    const result = scorePullRequest(
+      [file({ filename: "src/app.ts" }), file({ filename: "tests/app.test.ts" })],
+      undefined,
+      metadata({ body: "" })
+    );
+
+    expect(result.score).toBe(2);
+    expect(result.drivers.map((driver) => driver.key)).toEqual(expect.arrayContaining(["emptyOrVagueDescription"]));
+  });
+
+  it("penalizes PRs with many commits", () => {
+    const result = scorePullRequest(
+      [file({ filename: "src/app.ts" }), file({ filename: "tests/app.test.ts" })],
+      undefined,
+      metadata({ commits: 12 })
+    );
+
+    expect(result.drivers.map((driver) => driver.key)).toEqual(expect.arrayContaining(["manyCommits"]));
+    expect(result.score).toBe(2);
+  });
+
+  it("penalizes large diffs without explanation", () => {
+    const result = scorePullRequest(
+      Array.from({ length: 32 }, () => file({ filename: "src/module.ts", additions: 40, deletions: 20 })),
+      undefined,
+      metadata({ title: "Update", body: "Update", changedFiles: 32, commits: 1 })
+    );
+
+    expect(result.drivers.map((driver) => driver.key)).toEqual(expect.arrayContaining(["largeDiffWithoutExplanation"]));
+    expect(result.score).toBeGreaterThan(3);
   });
 });

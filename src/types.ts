@@ -25,6 +25,10 @@ export interface ScoreWeights {
   generatedTouched: number;
   deletedFiles: number;
   manyDeletedFiles: number;
+  weakTitle: number;
+  emptyOrVagueDescription: number;
+  manyCommits: number;
+  largeDiffWithoutExplanation: number;
 }
 
 export interface RiskThresholds {
@@ -88,4 +92,15 @@ export interface RiskResult {
     deletedFiles: number;
     testsChanged: boolean;
   };
+}
+
+export interface PullRequestMetadata {
+  title: string;
+  body: string;
+  authorAssociation: string;
+  labels: string[];
+  additions: number;
+  deletions: number;
+  changedFiles: number;
+  commits: number;
 }

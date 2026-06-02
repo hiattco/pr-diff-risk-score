@@ -66,6 +66,7 @@ Review guidance:
 | `fail-threshold` | No | `0` | Fails the action when the risk score is greater than or equal to this value. `0` disables failure. |
 | `comment-mode` | No | `update` | `update` updates the previous bot comment, `new` always creates a new comment, and `off` only logs output. |
 | `config-path` | No | `.github/pr-risk-score.yml` | Optional YAML config file path. |
+| `mode` | No | `heuristic` | One of `heuristic`, `llm`, or `hybrid`. |
 
 ## Scoring
 
@@ -114,6 +115,14 @@ weights:
   noTestsChanged: 2
   migrationTouched: 3
   sensitiveTouched: 3
+
+mode: heuristic
+llm:
+  enabled: false
+  provider: openai
+  model: gpt-4o
+  maxDiffChars: 6000
+  requireJson: true
 
 reviewers:
   auth:

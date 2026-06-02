@@ -2,6 +2,8 @@ export type RiskLevel = "Low" | "Medium" | "High" | "Critical";
 
 export type CommentMode = "update" | "new" | "off";
 
+export type JudgeMode = "heuristic" | "llm" | "hybrid";
+
 export interface ChangedFile {
   filename: string;
   status: string;
@@ -46,6 +48,14 @@ export interface RiskPatterns {
   generated: string[];
 }
 
+export interface LlmConfig {
+  enabled?: boolean;
+  provider?: string;
+  model?: string;
+  maxDiffChars?: number;
+  requireJson?: boolean;
+}
+
 export interface ReviewerMappings {
   auth: string[];
   payments: string[];
@@ -61,6 +71,8 @@ export interface RiskConfig {
   thresholds: RiskThresholds;
   patterns: RiskPatterns;
   reviewers: ReviewerMappings;
+  mode: JudgeMode;
+  llm: LlmConfig;
 }
 
 export interface PartialRiskConfig {
@@ -68,6 +80,8 @@ export interface PartialRiskConfig {
   thresholds?: Partial<RiskThresholds>;
   patterns?: Partial<Record<keyof RiskPatterns, string[]>>;
   reviewers?: Partial<Record<keyof ReviewerMappings, string[]>>;
+  mode?: JudgeMode;
+  llm?: Partial<LlmConfig>;
 }
 
 export interface RiskDriver {

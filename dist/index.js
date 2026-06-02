@@ -21458,10 +21458,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error;
-    function warning(message, properties = {}) {
+    function warning2(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning;
+    exports2.warning = warning2;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -21668,7 +21668,7 @@ __export(index_exports, {
   run: () => run
 });
 module.exports = __toCommonJS(index_exports);
-var core = __toESM(require_core());
+var core2 = __toESM(require_core());
 
 // node_modules/@actions/github/lib/context.js
 var import_fs = require("fs");
@@ -27956,6 +27956,14 @@ var defaultConfig = {
     frontend: ["frontend"],
     testOnly: ["standard-review"],
     default: ["codeowners/default"]
+  },
+  mode: "heuristic",
+  llm: {
+    enabled: false,
+    provider: "openai",
+    model: "gpt-4o",
+    maxDiffChars: 6e3,
+    requireJson: true
   }
 };
 function mergeConfig(partial) {
@@ -27966,7 +27974,9 @@ function mergeConfig(partial) {
     weights: { ...defaultConfig.weights, ...partial.weights },
     thresholds: { ...defaultConfig.thresholds, ...partial.thresholds },
     patterns: { ...defaultConfig.patterns, ...partial.patterns },
-    reviewers: { ...defaultConfig.reviewers, ...partial.reviewers }
+    reviewers: { ...defaultConfig.reviewers, ...partial.reviewers },
+    mode: partial.mode ?? defaultConfig.mode,
+    llm: { ...defaultConfig.llm, ...partial.llm }
   };
 }
 function riskLevelForScore(score, config = defaultConfig) {
@@ -29919,6 +29929,26 @@ function scorePullRequest(files, config = defaultConfig) {
   };
 }
 
+// src/judge.ts
+var core = __toESM(require_core());
+function parseJudgeMode(value) {
+  if (value === "heuristic" || value === "llm" || value === "hybrid") {
+    return value;
+  }
+  throw new Error("mode must be one of: heuristic, llm, hybrid.");
+}
+function resolveJudgeMode(actionModeInput, configMode, config) {
+  const mode = actionModeInput ? parseJudgeMode(actionModeInput) : parseJudgeMode(configMode);
+  if (mode === "heuristic") {
+    return mode;
+  }
+  if (config.llm.enabled) {
+    throw new Error("LLM and hybrid judge modes are not implemented yet.");
+  }
+  core.warning("judge mode is llm/hybrid but llm is disabled; falling back to heuristic.");
+  return "heuristic";
+}
+
 // src/index.ts
 function parseFailThreshold(value) {
   const parsed = Number(value);
@@ -29937,7 +29967,7 @@ function loadConfig(configPath) {
   const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
   const absolutePath = import_node_path.default.isAbsolute(configPath) ? configPath : import_node_path.default.join(workspace, configPath);
   if (!import_node_fs.default.existsSync(absolutePath)) {
-    core.info(`No config file found at ${configPath}; using defaults.`);
+    core2.info(`No config file found at ${configPath}; using defaults.`);
     return void 0;
   }
   const loaded = index_vite_proxy_tmp_default.load(import_node_fs.default.readFileSync(absolutePath, "utf8"));
@@ -29947,34 +29977,37 @@ function loadConfig(configPath) {
   return loaded;
 }
 async function run() {
-  const token = core.getInput("github-token", { required: true });
-  const failThreshold = parseFailThreshold(core.getInput("fail-threshold") || "0");
-  const commentMode = parseCommentMode(core.getInput("comment-mode") || "update");
-  const configPath = core.getInput("config-path") || ".github/pr-risk-score.yml";
+  const token = core2.getInput("github-token", { required: true });
+  const failThreshold = parseFailThreshold(core2.getInput("fail-threshold") || "0");
+  const commentMode = parseCommentMode(core2.getInput("comment-mode") || "update");
+  const judgeModeInput = core2.getInput("mode");
+  const configPath = core2.getInput("config-path") || ".github/pr-risk-score.yml";
   const octokit = getOctokit(token);
   const prContext = getPullRequestContext();
   const config = mergeConfig(loadConfig(configPath));
+  const judgeMode = resolveJudgeMode(judgeModeInput, config.mode, config);
   const files = await listChangedFiles(octokit, prContext);
   const result = scorePullRequest(files, config);
   const comment = renderRiskComment(result);
-  core.setOutput("risk-score", String(result.score));
-  core.setOutput("risk-level", result.level);
-  core.info(comment);
+  core2.info(`Using judge mode: ${judgeMode}.`);
+  core2.setOutput("risk-score", String(result.score));
+  core2.setOutput("risk-level", result.level);
+  core2.info(comment);
   if (commentMode === "update") {
     const operation = await updateRiskComment(octokit, prContext, comment);
-    core.info(`Risk comment ${operation}.`);
+    core2.info(`Risk comment ${operation}.`);
   } else if (commentMode === "new") {
     await createRiskComment(octokit, prContext, comment);
-    core.info("Risk comment created.");
+    core2.info("Risk comment created.");
   } else {
-    core.info("Comment mode is off; skipped PR comment.");
+    core2.info("Comment mode is off; skipped PR comment.");
   }
   if (failThreshold > 0 && result.score >= failThreshold) {
-    core.setFailed(`PR risk score ${result.score}/10 meets or exceeds fail threshold ${failThreshold}.`);
+    core2.setFailed(`PR risk score ${result.score}/10 meets or exceeds fail threshold ${failThreshold}.`);
   }
 }
 run().catch((error) => {
-  core.setFailed(error instanceof Error ? error.message : String(error));
+  core2.setFailed(error instanceof Error ? error.message : String(error));
 });
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

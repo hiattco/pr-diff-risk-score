@@ -21458,10 +21458,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error;
-    function warning2(message, properties = {}) {
+    function warning3(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning2;
+    exports2.warning = warning3;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -21668,7 +21668,7 @@ __export(index_exports, {
   run: () => run
 });
 module.exports = __toCommonJS(index_exports);
-var core2 = __toESM(require_core());
+var core3 = __toESM(require_core());
 
 // node_modules/@actions/github/lib/context.js
 var import_fs = require("fs");
@@ -27873,6 +27873,7 @@ async function updateRiskComment(octokit, context3, body) {
 }
 
 // src/llm.ts
+var core = __toESM(require_core());
 var import_http_client = __toESM(require_lib());
 
 // src/rules.ts
@@ -28173,16 +28174,25 @@ async function analyzePullRequestWithLlm(files, baseline, config, mode, env = pr
   const baseUrl2 = resolveBaseUrl(config, env);
   const payload = buildChatRequest(files, baseline, config);
   const client = new import_http_client.HttpClient("pr-diff-risk-score");
-  const response = await client.postJson(`${baseUrl2}/chat/completions`, payload, {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json"
-  });
-  if (response.statusCode < 200 || response.statusCode >= 300) {
-    const responseBody = JSON.stringify(response.result ?? "");
-    throw new Error(`LLM request failed with HTTP ${response.statusCode}: ${responseBody}`);
+  try {
+    const response = await client.postJson(`${baseUrl2}/chat/completions`, payload, {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    });
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      const responseBody = JSON.stringify(response.result ?? "");
+      throw new Error(`LLM request failed with HTTP ${response.statusCode}: ${responseBody}`);
+    }
+    const assessment = parseAssessment(parseChatContent(response.result), config.llm.requireJson ?? true, baseline.score);
+    return mergeAssessment(baseline, assessment, mode);
+  } catch (error) {
+    if (mode === "hybrid") {
+      const message = error instanceof Error ? error.message : String(error);
+      core.warning(`LLM analysis failed; using heuristic result. ${message}`);
+      return baseline;
+    }
+    throw error;
   }
-  const assessment = parseAssessment(parseChatContent(response.result), config.llm.requireJson ?? true, baseline.score);
-  return mergeAssessment(baseline, assessment, mode);
 }
 
 // node_modules/balanced-match/dist/esm/index.js
@@ -30155,7 +30165,7 @@ function scorePullRequest(files, config = defaultConfig) {
 }
 
 // src/judge.ts
-var core = __toESM(require_core());
+var core2 = __toESM(require_core());
 function parseJudgeMode(value) {
   if (value === "heuristic" || value === "llm" || value === "hybrid") {
     return value;
@@ -30170,7 +30180,7 @@ function resolveJudgeMode(actionModeInput, configMode, config) {
   if (config.llm.enabled) {
     return mode;
   }
-  core.warning("judge mode is llm/hybrid but llm is disabled; falling back to heuristic.");
+  core2.warning("judge mode is llm/hybrid but llm is disabled; falling back to heuristic.");
   return "heuristic";
 }
 
@@ -30192,7 +30202,7 @@ function loadConfig(configPath) {
   const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
   const absolutePath = import_node_path.default.isAbsolute(configPath) ? configPath : import_node_path.default.join(workspace, configPath);
   if (!import_node_fs.default.existsSync(absolutePath)) {
-    core2.info(`No config file found at ${configPath}; using defaults.`);
+    core3.info(`No config file found at ${configPath}; using defaults.`);
     return void 0;
   }
   const loaded = index_vite_proxy_tmp_default.load(import_node_fs.default.readFileSync(absolutePath, "utf8"));
@@ -30202,11 +30212,11 @@ function loadConfig(configPath) {
   return loaded;
 }
 async function run() {
-  const token = core2.getInput("github-token", { required: true });
-  const failThreshold = parseFailThreshold(core2.getInput("fail-threshold") || "0");
-  const commentMode = parseCommentMode(core2.getInput("comment-mode") || "update");
-  const judgeModeInput = core2.getInput("mode");
-  const configPath = core2.getInput("config-path") || ".github/pr-risk-score.yml";
+  const token = core3.getInput("github-token", { required: true });
+  const failThreshold = parseFailThreshold(core3.getInput("fail-threshold") || "0");
+  const commentMode = parseCommentMode(core3.getInput("comment-mode") || "update");
+  const judgeModeInput = core3.getInput("mode");
+  const configPath = core3.getInput("config-path") || ".github/pr-risk-score.yml";
   const octokit = getOctokit(token);
   const prContext = getPullRequestContext();
   const config = mergeConfig(loadConfig(configPath));
@@ -30215,28 +30225,28 @@ async function run() {
   const heuristicResult = scorePullRequest(files, config);
   const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode);
   const comment = renderRiskComment(result);
-  core2.info(`Using judge mode: ${judgeMode}.`);
-  core2.setOutput("risk-score", String(result.score));
-  core2.setOutput("slop-score", String(result.slopScore));
-  core2.setOutput("overall-score", String(result.overallScore));
-  core2.setOutput("risk-level", result.level);
-  core2.setOutput("risk-labels", result.recommendedLabels.join(","));
-  core2.info(comment);
+  core3.info(`Using judge mode: ${judgeMode}.`);
+  core3.setOutput("risk-score", String(result.score));
+  core3.setOutput("slop-score", String(result.slopScore));
+  core3.setOutput("overall-score", String(result.overallScore));
+  core3.setOutput("risk-level", result.level);
+  core3.setOutput("risk-labels", result.recommendedLabels.join(","));
+  core3.info(comment);
   if (commentMode === "update") {
     const operation = await updateRiskComment(octokit, prContext, comment);
-    core2.info(`Risk comment ${operation}.`);
+    core3.info(`Risk comment ${operation}.`);
   } else if (commentMode === "new") {
     await createRiskComment(octokit, prContext, comment);
-    core2.info("Risk comment created.");
+    core3.info("Risk comment created.");
   } else {
-    core2.info("Comment mode is off; skipped PR comment.");
+    core3.info("Comment mode is off; skipped PR comment.");
   }
   if (failThreshold > 0 && result.score >= failThreshold) {
-    core2.setFailed(`PR risk score ${result.score}/10 meets or exceeds fail threshold ${failThreshold}.`);
+    core3.setFailed(`PR risk score ${result.score}/10 meets or exceeds fail threshold ${failThreshold}.`);
   }
 }
 run().catch((error) => {
-  core2.setFailed(error instanceof Error ? error.message : String(error));
+  core3.setFailed(error instanceof Error ? error.message : String(error));
 });
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

@@ -1,3 +1,4 @@
+import * as core from "@actions/core";
 import { HttpClient } from "@actions/http-client";
 import { riskLevelForScore } from "./rules";
 import type { ChangedFile, JudgeMode, LlmAssessment, RiskConfig, RiskLevel, RiskResult } from "./types";
@@ -202,17 +203,26 @@ export async function analyzePullRequestWithLlm(
   const baseUrl = resolveBaseUrl(config, env);
   const payload = buildChatRequest(files, baseline, config);
   const client = new HttpClient("pr-diff-risk-score");
-  const response = await client.postJson<unknown>(`${baseUrl}/chat/completions`, payload, {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json"
-  });
+  try {
+    const response = await client.postJson<unknown>(`${baseUrl}/chat/completions`, payload, {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json"
+    });
 
-  if (response.statusCode < 200 || response.statusCode >= 300) {
-    const responseBody = JSON.stringify(response.result ?? "");
-    throw new Error(`LLM request failed with HTTP ${response.statusCode}: ${responseBody}`);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      const responseBody = JSON.stringify(response.result ?? "");
+      throw new Error(`LLM request failed with HTTP ${response.statusCode}: ${responseBody}`);
+    }
+
+    const assessment = parseAssessment(parseChatContent(response.result), config.llm.requireJson ?? true, baseline.score);
+
+    return mergeAssessment(baseline, assessment, mode);
+  } catch (error) {
+    if (mode === "hybrid") {
+      const message = error instanceof Error ? error.message : String(error);
+      core.warning(`LLM analysis failed; using heuristic result. ${message}`);
+      return baseline;
+    }
+    throw error;
   }
-
-  const assessment = parseAssessment(parseChatContent(response.result), config.llm.requireJson ?? true, baseline.score);
-
-  return mergeAssessment(baseline, assessment, mode);
 }

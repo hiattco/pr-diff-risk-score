@@ -83,6 +83,26 @@ async function startOpenAiCompatibleServer(responseContent: string): Promise<{ r
   };
 }
 
+async function startFailingOpenAiCompatibleServer(): Promise<{ readonly baseUrl: string }> {
+  server = http.createServer((_request, response) => {
+    response.writeHead(404, { "Content-Type": "application/json" });
+    response.end(JSON.stringify({ error: { message: "No endpoints available" } }));
+  });
+
+  await new Promise<void>((resolve) => {
+    server?.listen(0, "127.0.0.1", resolve);
+  });
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("test server did not expose a TCP address.");
+  }
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}/v1`
+  };
+}
+
 describe("LLM analysis", () => {
   it("uses an OpenAI-compatible endpoint and merges JSON guidance", async () => {
     const remote = await startOpenAiCompatibleServer(
@@ -156,6 +176,40 @@ describe("LLM analysis", () => {
     const result = await analyzePullRequestWithLlm(files, baseline, config, "heuristic", {});
 
     expect(result).toBe(baseline);
+  });
+
+  it("falls back to heuristic result when hybrid LLM request fails", async () => {
+    const remote = await startFailingOpenAiCompatibleServer();
+    const config = mergeConfig({
+      llm: {
+        enabled: true
+      }
+    });
+    const baseline = scorePullRequest(files, config);
+
+    const result = await analyzePullRequestWithLlm(files, baseline, config, "hybrid", {
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: remote.baseUrl
+    });
+
+    expect(result).toBe(baseline);
+  });
+
+  it("rejects provider errors in pure LLM mode", async () => {
+    const remote = await startFailingOpenAiCompatibleServer();
+    const config = mergeConfig({
+      llm: {
+        enabled: true
+      }
+    });
+    const baseline = scorePullRequest(files, config);
+
+    await expect(
+      analyzePullRequestWithLlm(files, baseline, config, "llm", {
+        OPENAI_API_KEY: "test-key",
+        OPENAI_BASE_URL: remote.baseUrl
+      })
+    ).rejects.toThrowError("LLM request failed with HTTP 404");
   });
 
   it("rejects malformed JSON when JSON output is required", async () => {

@@ -55,6 +55,7 @@ export async function run(): Promise<void> {
 
   core.setOutput("risk-score", String(result.score));
   core.setOutput("risk-level", result.level);
+  core.setOutput("risk-labels", result.recommendedLabels.join(","));
   core.info(comment);
 
   if (commentMode === "update") {

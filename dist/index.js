@@ -27797,6 +27797,9 @@ function renderRiskComment(result) {
 ### Main drivers
 ${bulletList(drivers)}
 
+### Recommended labels
+${bulletList(result.recommendedLabels)}
+
 ### Suggested reviewer area
 ${bulletList(result.reviewerAreas)}
 
@@ -29855,6 +29858,20 @@ function buildReviewGuidance(drivers, reviewerAreas) {
   }
   return guidance;
 }
+function buildRecommendedLabels(level, filesChanged, totalChanges, deletedFiles, drivers) {
+  const keys = new Set(drivers.map((driver) => driver.key));
+  const labels = [`risk:${level.toLowerCase()}`];
+  if (keys.has("noTestsChanged")) {
+    labels.push("needs-tests");
+  }
+  if (keys.has("migrationTouched") || keys.has("sensitiveTouched") || keys.has("configTouched") || filesChanged >= 15 || totalChanges >= 700 || deletedFiles >= 5) {
+    labels.push("needs-context");
+  }
+  if (level === "High" || level === "Critical") {
+    labels.push("review-carefully");
+  }
+  return unique(labels);
+}
 function reviewerAreasForFiles(files, config, testsChanged) {
   const paths = files.map((file) => file.filename);
   const areas = [];
@@ -29904,9 +29921,12 @@ function scorePullRequest(files, config = defaultConfig) {
   addDriver(drivers, deletedFiles >= 5 ? "manyDeletedFiles" : "deletedFiles", `${deletedFiles} files deleted`, deletedFilePoints(deletedFiles, config));
   const score = clampScore(1 + drivers.reduce((sum, driver) => sum + driver.points, 0));
   const reviewerAreas = reviewerAreasForFiles(files, config, testsChanged);
+  const level = riskLevelForScore(score, config);
+  const recommendedLabels = buildRecommendedLabels(level, files.length, totalChanges, deletedFiles, drivers);
   return {
     score,
-    level: riskLevelForScore(score, config),
+    level,
+    recommendedLabels,
     drivers,
     reviewerAreas,
     reviewGuidance: buildReviewGuidance(drivers, reviewerAreas),
@@ -29959,6 +29979,7 @@ async function run() {
   const comment = renderRiskComment(result);
   core.setOutput("risk-score", String(result.score));
   core.setOutput("risk-level", result.level);
+  core.setOutput("risk-labels", result.recommendedLabels.join(","));
   core.info(comment);
   if (commentMode === "update") {
     const operation = await updateRiskComment(octokit, prContext, comment);

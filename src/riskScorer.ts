@@ -81,6 +81,38 @@ function buildReviewGuidance(drivers: RiskDriver[], reviewerAreas: string[]): st
   return guidance;
 }
 
+function buildRecommendedLabels(
+  level: RiskResult["level"],
+  filesChanged: number,
+  totalChanges: number,
+  deletedFiles: number,
+  drivers: RiskDriver[]
+): string[] {
+  const keys = new Set(drivers.map((driver) => driver.key));
+  const labels: string[] = [`risk:${level.toLowerCase()}`];
+
+  if (keys.has("noTestsChanged")) {
+    labels.push("needs-tests");
+  }
+
+  if (
+    keys.has("migrationTouched") ||
+    keys.has("sensitiveTouched") ||
+    keys.has("configTouched") ||
+    filesChanged >= 15 ||
+    totalChanges >= 700 ||
+    deletedFiles >= 5
+  ) {
+    labels.push("needs-context");
+  }
+
+  if (level === "High" || level === "Critical") {
+    labels.push("review-carefully");
+  }
+
+  return unique(labels);
+}
+
 function reviewerAreasForFiles(files: ChangedFile[], config: RiskConfig, testsChanged: boolean): string[] {
   const paths = files.map((file) => file.filename);
   const areas: string[] = [];
@@ -136,10 +168,13 @@ export function scorePullRequest(files: ChangedFile[], config: RiskConfig = defa
 
   const score = clampScore(1 + drivers.reduce((sum, driver) => sum + driver.points, 0));
   const reviewerAreas = reviewerAreasForFiles(files, config, testsChanged);
+  const level = riskLevelForScore(score, config);
+  const recommendedLabels = buildRecommendedLabels(level, files.length, totalChanges, deletedFiles, drivers);
 
   return {
     score,
-    level: riskLevelForScore(score, config),
+    level,
+    recommendedLabels,
     drivers,
     reviewerAreas,
     reviewGuidance: buildReviewGuidance(drivers, reviewerAreas),

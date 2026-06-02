@@ -18,6 +18,9 @@ export function renderRiskComment(result: RiskResult): string {
 ### Main drivers
 ${bulletList(drivers)}
 
+### Recommended labels
+${bulletList(result.recommendedLabels)}
+
 ### Suggested reviewer area
 ${bulletList(result.reviewerAreas)}
 

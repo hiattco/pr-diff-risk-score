@@ -23,6 +23,7 @@ describe("scorePullRequest", () => {
 
     expect(result.score).toBe(1);
     expect(result.level).toBe("Low");
+    expect(result.recommendedLabels).toEqual(["risk:low"]);
     expect(result.reviewerAreas).toEqual(["codeowners/default"]);
   });
 
@@ -34,8 +35,24 @@ describe("scorePullRequest", () => {
 
     expect(result.score).toBe(10);
     expect(result.level).toBe("Critical");
+    expect(result.recommendedLabels).toEqual(expect.arrayContaining(["risk:critical", "needs-tests", "needs-context", "review-carefully"]));
     expect(result.drivers.map((driver) => driver.key)).toEqual(expect.arrayContaining(["migrationTouched", "sensitiveTouched", "noTestsChanged"]));
     expect(result.reviewerAreas).toEqual(expect.arrayContaining(["backend/security", "backend/database"]));
+  });
+
+  it("emits high-risk labels for large untested PRs", () => {
+    const files = Array.from({ length: 15 }, (_, index) =>
+      file({
+        filename: `src/feature-${index}.ts`,
+        additions: 120,
+        deletions: 0
+      })
+    );
+
+    const result = scorePullRequest(files);
+
+    expect(result.level).toBe("High");
+    expect(result.recommendedLabels).toEqual(expect.arrayContaining(["risk:high", "needs-tests", "needs-context", "review-carefully"]));
   });
 
   it("clamps very large risky PRs at 10", () => {

@@ -14,7 +14,11 @@ export const defaultConfig: RiskConfig = {
     sensitiveTouched: 3,
     generatedTouched: 2,
     deletedFiles: 1,
-    manyDeletedFiles: 2
+    manyDeletedFiles: 2,
+    weakTitle: 1,
+    emptyOrVagueDescription: 1,
+    manyCommits: 1,
+    largeDiffWithoutExplanation: 1
   },
   thresholds: {
     lowMax: 3,

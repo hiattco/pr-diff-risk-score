@@ -1,6 +1,6 @@
 import { minimatch } from "minimatch";
 import { clampScore, defaultConfig, riskLevelForScore } from "./rules";
-import type { ChangedFile, RiskConfig, RiskDriver, RiskResult } from "./types";
+import type { ChangedFile, PullRequestMetadata, RiskConfig, RiskDriver, RiskResult } from "./types";
 
 function matchesAny(path: string, patterns: string[]): boolean {
   return patterns.some((pattern) => minimatch(path, pattern, { dot: true, nocase: true, matchBase: true }));
@@ -47,6 +47,48 @@ function looksGenerated(file: ChangedFile, config: RiskConfig): boolean {
 
 function unique(values: string[]): string[] {
   return Array.from(new Set(values));
+}
+
+function normalizeMetadata(metadata?: Partial<PullRequestMetadata>): PullRequestMetadata {
+  const defaultTitle = "PR metadata not collected";
+  const defaultBody = "PR description was not collected for scoring.";
+
+  return {
+    title: defaultTitle,
+    body: defaultBody,
+    authorAssociation: "UNKNOWN",
+    labels: [],
+    additions: 0,
+    deletions: 0,
+    changedFiles: 0,
+    commits: 1,
+    ...metadata
+  };
+}
+
+function isWeakTitle(title: string): boolean {
+  const trimmed = title.trim().toLowerCase();
+  if (trimmed.length <= 8) {
+    return true;
+  }
+
+  return /^(chore|fix|update|hotfix|wip|feat|test|refactor|bugfix|release)(\s+#?\d+)?$/.test(trimmed);
+}
+
+function isVagueBody(body: string): boolean {
+  const normalized = body.replace(/\r/g, "").trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  if (normalized.length < 20) {
+    return true;
+  }
+
+  return /^(n\/a|none|tbd|todo|wip)$/.test(normalized) || /^(updating|update|chore)$/.test(normalized);
+}
+
+function hasExplanation(metadata: PullRequestMetadata): boolean {
+  return !isWeakTitle(metadata.title) && !isVagueBody(metadata.body);
 }
 
 function buildReviewGuidance(drivers: RiskDriver[], reviewerAreas: string[]): string[] {
@@ -108,7 +150,8 @@ function reviewerAreasForFiles(files: ChangedFile[], config: RiskConfig, testsCh
   return unique(areas.length > 0 ? areas : config.reviewers.default);
 }
 
-export function scorePullRequest(files: ChangedFile[], config: RiskConfig = defaultConfig): RiskResult {
+export function scorePullRequest(files: ChangedFile[], config: RiskConfig = defaultConfig, metadata?: PullRequestMetadata): RiskResult {
+  const prMetadata = normalizeMetadata(metadata);
   const drivers: RiskDriver[] = [];
   const totalChanges = files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
   const deletedFiles = files.filter((file) => file.status === "removed").length;
@@ -116,6 +159,15 @@ export function scorePullRequest(files: ChangedFile[], config: RiskConfig = defa
 
   addDriver(drivers, "filesChanged", `${files.length} files changed`, fileCountPoints(files.length, config));
   addDriver(drivers, "linesChanged", `${totalChanges} total line changes`, lineCountPoints(totalChanges, config));
+  addDriver(drivers, "weakTitle", `PR title is weak (${prMetadata.title})`, config.weights.weakTitle * (isWeakTitle(prMetadata.title) ? 1 : 0));
+  addDriver(drivers, "emptyOrVagueDescription", "PR description is empty or vague", config.weights.emptyOrVagueDescription * (isVagueBody(prMetadata.body) ? 1 : 0));
+  addDriver(drivers, "manyCommits", `${prMetadata.commits} commits`, config.weights.manyCommits * (prMetadata.commits >= 10 ? 1 : 0));
+  addDriver(
+    drivers,
+    "largeDiffWithoutExplanation",
+    "Large diff changed with little explanation",
+    config.weights.largeDiffWithoutExplanation * (prMetadata.changedFiles >= 30 && !hasExplanation(prMetadata) ? 1 : 0)
+  );
 
   if (files.some((file) => matchesAny(file.filename, config.patterns.config))) {
     addDriver(drivers, "configTouched", "Configuration or dependency file changed", config.weights.configTouched);

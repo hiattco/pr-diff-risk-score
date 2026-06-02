@@ -24,6 +24,9 @@ ${bulletList(drivers)}
 ### Review-quality drivers
 ${bulletList(slopDrivers)}
 
+### Recommended labels
+${bulletList(result.recommendedLabels)}
+
 ### Suggested reviewer area
 ${bulletList(result.reviewerAreas)}
 

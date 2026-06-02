@@ -78,8 +78,11 @@ export interface RiskDriver {
 
 export interface RiskResult {
   score: number;
+  slopScore: number;
+  overallScore: number;
   level: RiskLevel;
   drivers: RiskDriver[];
+  slopDrivers: RiskDriver[];
   reviewerAreas: string[];
   reviewGuidance: string[];
   stats: {

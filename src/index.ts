@@ -54,6 +54,8 @@ export async function run(): Promise<void> {
   const comment = renderRiskComment(result);
 
   core.setOutput("risk-score", String(result.score));
+  core.setOutput("slop-score", String(result.slopScore));
+  core.setOutput("overall-score", String(result.overallScore));
   core.setOutput("risk-level", result.level);
   core.info(comment);
 

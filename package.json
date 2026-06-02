@@ -38,8 +38,5 @@
     "esbuild": "^0.28.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.7"
-  },
-  "overrides": {
-    "@actions/http-client": "^3.0.2"
   }
 }

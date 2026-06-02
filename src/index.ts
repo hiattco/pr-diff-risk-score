@@ -6,6 +6,7 @@ import yaml from "js-yaml";
 import { renderRiskComment } from "./comment";
 import { getPullRequestContext, listChangedFiles, updateRiskComment, createRiskComment } from "./github";
 import { mergeConfig } from "./rules";
+import { formatRiskResultJson } from "./output";
 import { scorePullRequest } from "./riskScorer";
 import type { CommentMode, PartialRiskConfig } from "./types";
 
@@ -52,9 +53,11 @@ export async function run(): Promise<void> {
   const files = await listChangedFiles(octokit, prContext);
   const result = scorePullRequest(files, config);
   const comment = renderRiskComment(result);
+  const summaryJson = formatRiskResultJson(result);
 
   core.setOutput("risk-score", String(result.score));
   core.setOutput("risk-level", result.level);
+  core.setOutput("risk-json", summaryJson);
   core.info(comment);
 
   if (commentMode === "update") {

@@ -27985,6 +27985,11 @@ function clampScore(score) {
   return Math.max(1, Math.min(10, score));
 }
 
+// src/output.ts
+function formatRiskResultJson(result) {
+  return JSON.stringify(result);
+}
+
 // node_modules/balanced-match/dist/esm/index.js
 var balanced = (a, b, str) => {
   const ma = a instanceof RegExp ? maybeMatch(a, str) : a;
@@ -29957,8 +29962,10 @@ async function run() {
   const files = await listChangedFiles(octokit, prContext);
   const result = scorePullRequest(files, config);
   const comment = renderRiskComment(result);
+  const summaryJson = formatRiskResultJson(result);
   core.setOutput("risk-score", String(result.score));
   core.setOutput("risk-level", result.level);
+  core.setOutput("risk-json", summaryJson);
   core.info(comment);
   if (commentMode === "update") {
     const operation = await updateRiskComment(octokit, prContext, comment);

@@ -4,6 +4,12 @@
 
 It is designed to help reviewers quickly spot risky PRs, especially in repositories where AI-generated or agent-authored changes are common.
 
+The action also exposes machine-readable outputs:
+
+- `risk-score`
+- `risk-level`
+- `risk-json`
+
 ## Usage
 
 ```yaml

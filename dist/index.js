@@ -30245,9 +30245,11 @@ async function run() {
   const commentMode = parseCommentMode(core3.getInput("comment-mode") || "update");
   const judgeModeInput = core3.getInput("mode");
   const configPath = core3.getInput("config-path") || ".github/pr-risk-score.yml";
+  const llmModelOverride = core3.getInput("llm-model");
   const octokit = getOctokit(token);
   const prContext = getPullRequestContext();
-  const config = mergeConfig(loadConfig(configPath));
+  const loadedConfig = loadConfig(configPath);
+  const config = llmModelOverride ? mergeConfig({ ...loadedConfig, llm: { ...loadedConfig?.llm, model: llmModelOverride } }) : mergeConfig(loadedConfig);
   const judgeMode = resolveJudgeMode(judgeModeInput, config.mode, config);
   const files = await listChangedFiles(octokit, prContext);
   const heuristicResult = scorePullRequest(files, config);

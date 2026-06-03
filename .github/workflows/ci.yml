@@ -41,6 +41,7 @@ jobs:
           comment-mode: off
           fail-threshold: "0"
           mode: ${{ secrets.OPENROUTER_API_KEY != '' && 'hybrid' || 'heuristic' }}
+          llm-model: openrouter/owl-alpha
 
   risk-score-comment:
     if: github.event_name == 'pull_request_target'
@@ -62,3 +63,4 @@ jobs:
           comment-mode: update
           fail-threshold: "0"
           mode: ${{ secrets.OPENROUTER_API_KEY != '' && 'hybrid' || 'heuristic' }}
+          llm-model: openrouter/owl-alpha

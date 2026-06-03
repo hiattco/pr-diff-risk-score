@@ -18,6 +18,9 @@ inputs:
     description: Path to an optional YAML configuration file.
     required: false
     default: .github/pr-risk-score.yml
+  llm-model:
+    description: Optional LLM model override. If set, this value replaces config.llm.model.
+    required: false
   mode:
     description: Risk judge mode. One of heuristic, llm, or hybrid.
     required: false

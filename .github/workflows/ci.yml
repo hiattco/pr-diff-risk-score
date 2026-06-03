@@ -32,7 +32,7 @@ jobs:
       pull-requests: read
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL || 'https://openrouter.ai/api/v1' }}
+      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
     steps:
       - uses: actions/checkout@v6
       - uses: ./
@@ -41,7 +41,7 @@ jobs:
           comment-mode: off
           fail-threshold: "0"
           mode: ${{ secrets.OPENROUTER_API_KEY != '' && 'hybrid' || 'heuristic' }}
-          llm-model: ${{ vars.LLM_MODEL || 'openrouter/owl-alpha' }}
+          llm-model: ${{ vars.LLM_MODEL }}
 
   risk-score-comment:
     if: github.event_name == 'pull_request'
@@ -52,7 +52,7 @@ jobs:
       issues: write
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL || 'https://openrouter.ai/api/v1' }}
+      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
     steps:
       - uses: actions/checkout@v6
       - uses: ./
@@ -61,4 +61,4 @@ jobs:
           comment-mode: update
           fail-threshold: "0"
           mode: ${{ secrets.OPENROUTER_API_KEY != '' && 'hybrid' || 'heuristic' }}
-          llm-model: ${{ vars.LLM_MODEL || 'openrouter/owl-alpha' }}
+          llm-model: ${{ vars.LLM_MODEL }}

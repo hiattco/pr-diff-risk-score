@@ -88,12 +88,20 @@ Review guidance:
 | `comment-mode` | No | `update` | `update` updates the previous bot comment, `new` always creates a new comment, and `off` only logs output. |
 | `config-path` | No | `.github/pr-risk-score.yml` | Optional YAML config file path. |
 | `mode` | No | `heuristic` | Judge mode. One of `heuristic`, `llm`, or `hybrid`. |
+| `llm-model` | No | | Optional model override. Falls back to repository variable `LLM_MODEL` and then action defaults. |
 
 `heuristic` is the default. `llm` and `hybrid` call an OpenAI-compatible chat completion endpoint when `llm.enabled` is `true`. When `llm.enabled` is `false`, requesting `llm` or `hybrid` logs a warning and falls back to `heuristic`.
 
 ## OpenRouter LLM Mode
 
-The LLM path uses the OpenAI-compatible `/chat/completions` API. For OpenRouter, set the base URL and API key through workflow environment variables:
+The LLM path uses the OpenAI-compatible `/chat/completions` API. For OpenRouter, set these GitHub repository variables:
+
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `OPENAI_BASE_URL` | Yes (for OpenRouter) | Chat endpoint base URL (for example `https://openrouter.ai/api/v1`). |
+| `LLM_MODEL` | Yes (for OpenRouter) | Default chat model (for example `openrouter/owl-alpha`). |
+
+Then in the workflow, pass `OPENAI_API_KEY`/`OPENROUTER_API_KEY` as a secret and let the action input use the repository variable:
 
 ```yaml
 name: PR Risk Score
@@ -112,11 +120,12 @@ jobs:
     runs-on: ubuntu-latest
     env:
       OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-      OPENAI_BASE_URL: https://openrouter.ai/api/v1
+      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
     steps:
       - uses: hiattco/pr-diff-risk-score@v0.1.0
         with:
           github-token: ${{ github.token }}
+          llm-model: ${{ vars.LLM_MODEL }}
           comment-mode: update
           mode: hybrid
 ```
@@ -128,7 +137,6 @@ mode: hybrid
 llm:
   enabled: true
   provider: openai
-  model: openrouter/owl-alpha
   maxDiffChars: 6000
   requireJson: true
 ```
@@ -187,7 +195,7 @@ mode: heuristic
 llm:
   enabled: false
   provider: openai
-  model: gpt-4o
+  # Set model via repository variable LLM_MODEL (for example: openrouter/owl-alpha)
   baseUrl: https://openrouter.ai/api/v1
   maxDiffChars: 6000
   requireJson: true
@@ -209,6 +217,8 @@ patterns:
 ```
 
 Action inputs take precedence over config defaults. For example, `with: { mode: heuristic }` keeps the action in heuristic mode even if the config file sets another mode.
+
+See `examples/openrouter-workflow.yml` for a full reusable workflow template using repo variables.
 
 ## Development
 
@@ -237,7 +247,33 @@ Run the full CI gate and regenerate the bundled action:
 npm run ci
 ```
 
-To test against OpenRouter from a workflow, add `OPENROUTER_API_KEY` as a repository secret, set `OPENAI_BASE_URL: https://openrouter.ai/api/v1`, set `mode: hybrid` or `mode: llm`, and use the LLM config shown above.
+To test against OpenRouter from a workflow, add `OPENROUTER_API_KEY` as a repository secret, set `OPENAI_BASE_URL` (for example via repository variables), set `mode: hybrid` or `mode: llm`, and use the LLM config shown above.
+
+## Configuration-first "how to"
+
+1. Set repo variables:
+   - `OPENAI_BASE_URL` (required for OpenRouter)
+   - `LLM_MODEL` (model for all runs unless overridden by workflow input)
+2. Set `OPENROUTER_API_KEY` or `OPENAI_API_KEY` as a secret.
+3. Keep `.github/pr-risk-score.yml` provider + scorer settings; omit `llm.model` unless you want hard-coded per-repo behavior.
+4. In workflow input, pass `llm-model: ${{ vars.LLM_MODEL }}`.
+
+A practical example with these defaults is:
+
+```yaml
+jobs:
+  risk-score:
+    runs-on: ubuntu-latest
+    env:
+      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+    steps:
+      - uses: hiattco/pr-diff-risk-score@v0.1.0
+        with:
+          github-token: ${{ github.token }}
+          llm-model: ${{ vars.LLM_MODEL }}
+          mode: hybrid
+```
 
 ## License
 

@@ -54,11 +54,12 @@ export async function run(): Promise<void> {
   const octokit = github.getOctokit(token);
   const prContext = getPullRequestContext();
   const loadedConfig = loadConfig(configPath);
-  const config = llmModelOverride ? mergeConfig({ ...loadedConfig, llm: { ...loadedConfig?.llm, model: llmModelOverride } }) : mergeConfig(loadedConfig);
+  const config = mergeConfig(loadedConfig);
+  const env = llmModelOverride ? { ...process.env, LLM_MODEL: llmModelOverride } : process.env;
   const judgeMode = resolveJudgeMode(judgeModeInput, config.mode, config);
   const files = await listChangedFiles(octokit, prContext);
   const heuristicResult = scorePullRequest(files, config);
-  const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode);
+  const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode, env);
   const comment = renderRiskComment(result);
   core.info(`Using judge mode: ${judgeMode}.`);
 

@@ -19,7 +19,7 @@ inputs:
     required: false
     default: .github/pr-risk-score.yml
   llm-model:
-    description: Optional LLM model override. If set, this value replaces config.llm.model.
+    description: Optional LLM model override. If set, this value replaces config.llm.model. If blank, action resolves `LLM_MODEL` from environment.
     required: false
   mode:
     description: Risk judge mode. One of heuristic, llm, or hybrid.

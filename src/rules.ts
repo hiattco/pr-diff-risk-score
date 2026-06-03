@@ -97,7 +97,7 @@ export const defaultConfig: RiskConfig = {
   llm: {
     enabled: false,
     provider: "openai",
-    model: "gpt-4o",
+    model: undefined,
     maxDiffChars: 6000,
     requireJson: true
   }

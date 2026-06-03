@@ -2,6 +2,5 @@ mode: hybrid
 llm:
   enabled: true
   provider: openai
-  model: openrouter/owl-alpha
   maxDiffChars: 6000
   requireJson: true

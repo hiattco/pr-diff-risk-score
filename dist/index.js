@@ -27974,7 +27974,7 @@ var defaultConfig = {
   llm: {
     enabled: false,
     provider: "openai",
-    model: "gpt-4o",
+    model: void 0,
     maxDiffChars: 6e3,
     requireJson: true
   }
@@ -28073,6 +28073,9 @@ function resolveBaseUrl(config, env) {
   }
   return config.llm.provider === "openrouter" ? "https://openrouter.ai/api/v1" : "https://api.openai.com/v1";
 }
+function resolveModel(config, env) {
+  return env.LLM_MODEL ?? config.llm.model ?? "gpt-4o";
+}
 function changedFileSummary(file) {
   const patch = file.patch ? `
 ${file.patch}` : "";
@@ -28087,10 +28090,11 @@ function buildDiffPrompt(files, maxDiffChars) {
 
 [diff truncated]` : fullDiff;
 }
-function buildChatRequest(files, baseline, config) {
+function buildChatRequest(files, baseline, config, env) {
   const maxDiffChars = config.llm.maxDiffChars ?? 6e3;
+  const model = resolveModel(config, env);
   const baseRequest = {
-    model: config.llm.model ?? "gpt-4o",
+    model,
     temperature: 0,
     messages: [
       {
@@ -28235,7 +28239,7 @@ async function analyzePullRequestWithLlm(files, baseline, config, mode, env = pr
   }
   const apiKey = resolveApiKey(env);
   const baseUrl2 = resolveBaseUrl(config, env);
-  const payload = buildChatRequest(files, baseline, config);
+  const payload = buildChatRequest(files, baseline, config, env);
   const client = new import_http_client.HttpClient("pr-diff-risk-score");
   try {
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
@@ -30336,11 +30340,12 @@ async function run() {
   const octokit = getOctokit(token);
   const prContext = getPullRequestContext();
   const loadedConfig = loadConfig(configPath);
-  const config = llmModelOverride ? mergeConfig({ ...loadedConfig, llm: { ...loadedConfig?.llm, model: llmModelOverride } }) : mergeConfig(loadedConfig);
+  const config = mergeConfig(loadedConfig);
+  const env = llmModelOverride ? { ...process.env, LLM_MODEL: llmModelOverride } : process.env;
   const judgeMode = resolveJudgeMode(judgeModeInput, config.mode, config);
   const files = await listChangedFiles(octokit, prContext);
   const heuristicResult = scorePullRequest(files, config);
-  const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode);
+  const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode, env);
   const comment = renderRiskComment(result);
   core3.info(`Using judge mode: ${judgeMode}.`);
   core3.setOutput("risk-score", String(result.score));

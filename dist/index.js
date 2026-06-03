@@ -28074,7 +28074,7 @@ function resolveBaseUrl(config, env) {
   return config.llm.provider === "openrouter" ? "https://openrouter.ai/api/v1" : "https://api.openai.com/v1";
 }
 function resolveModel(config, env) {
-  return config.llm.model ?? env.LLM_MODEL ?? "gpt-4o";
+  return env.LLM_MODEL ?? config.llm.model ?? "gpt-4o";
 }
 function changedFileSummary(file) {
   const patch = file.patch ? `
@@ -30340,11 +30340,12 @@ async function run() {
   const octokit = getOctokit(token);
   const prContext = getPullRequestContext();
   const loadedConfig = loadConfig(configPath);
-  const config = llmModelOverride ? mergeConfig({ ...loadedConfig, llm: { ...loadedConfig?.llm, model: llmModelOverride } }) : mergeConfig(loadedConfig);
+  const config = mergeConfig(loadedConfig);
+  const env = llmModelOverride ? { ...process.env, LLM_MODEL: llmModelOverride } : process.env;
   const judgeMode = resolveJudgeMode(judgeModeInput, config.mode, config);
   const files = await listChangedFiles(octokit, prContext);
   const heuristicResult = scorePullRequest(files, config);
-  const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode);
+  const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode, env);
   const comment = renderRiskComment(result);
   core3.info(`Using judge mode: ${judgeMode}.`);
   core3.setOutput("risk-score", String(result.score));

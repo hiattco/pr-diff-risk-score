@@ -96,7 +96,7 @@ function resolveBaseUrl(config: RiskConfig, env: Env): string {
 }
 
 function resolveModel(config: RiskConfig, env: Env): string {
-  return config.llm.model ?? env.LLM_MODEL ?? "gpt-4o";
+  return env.LLM_MODEL ?? config.llm.model ?? "gpt-4o";
 }
 
 function changedFileSummary(file: ChangedFile): string {

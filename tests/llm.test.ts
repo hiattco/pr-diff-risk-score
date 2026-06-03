@@ -222,6 +222,37 @@ describe("LLM analysis", () => {
     });
   });
 
+  it("uses LLM_MODEL environment variable before config model", async () => {
+    const remote = await startOpenAiCompatibleServer(
+      JSON.stringify({
+        score: 9,
+        level: "Critical",
+        summary: "Repository model variable overrides config.",
+        reviewGuidance: ["Confirm repo variable precedence."],
+        recommendedLabels: ["llm:env-model"],
+        reviewerAreas: ["backend/security"]
+      })
+    );
+    const config = mergeConfig({
+      llm: {
+        enabled: true,
+        model: "committed/config-model"
+      }
+    });
+    const baseline = scorePullRequest(files, config);
+
+    const result = await analyzePullRequestWithLlm(files, baseline, config, "llm", {
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: remote.baseUrl,
+      LLM_MODEL: "repo/vars-model"
+    });
+
+    expect(result.score).toBe(9);
+    expect(remote.body).toMatchObject({
+      model: "repo/vars-model"
+    });
+  });
+
   it("uses OPENAI_BASE_URL environment variable for chat completion endpoint", async () => {
     const remote = await startOpenAiCompatibleServer(
       JSON.stringify({

@@ -14,7 +14,15 @@ export const defaultConfig: RiskConfig = {
     sensitiveTouched: 3,
     generatedTouched: 2,
     deletedFiles: 1,
-    manyDeletedFiles: 2
+    manyDeletedFiles: 2,
+    hotspotTouched: 2,
+    highChurnTouched: 2,
+    bugfixHotspotTouched: 2,
+    recentlyRevertedTouched: 3,
+    architectureMinorDrift: 1,
+    architectureModerateDrift: 2,
+    architectureMajorDrift: 3,
+    architectureCriticalDrift: 4
   },
   thresholds: {
     lowMax: 3,
@@ -100,6 +108,36 @@ export const defaultConfig: RiskConfig = {
     model: undefined,
     maxDiffChars: 6000,
     requireJson: true
+  },
+  history: {
+    enabled: true,
+    mode: "auto",
+    lookbackDays: 180,
+    recentCommitThreshold: 8,
+    churnThreshold: 500,
+    bugfixCommitThreshold: 2,
+    revertCommitThreshold: 1,
+    maxHotspotFilesShown: 5,
+    bugfixKeywords: ["fix", "bug", "regression", "revert", "hotfix", "incident"]
+  },
+  architecture: {
+    enabled: false,
+    mode: "off",
+    strict: false,
+    maxDocChars: 12000,
+    maxDiffChars: 8000,
+    includePrBody: true,
+    requireMappedDocs: false,
+    maxFindingsShown: 5,
+    context: {
+      docs: []
+    },
+    severityWeights: {
+      minor: 1,
+      moderate: 2,
+      major: 3,
+      critical: 4
+    }
   }
 };
 
@@ -114,8 +152,70 @@ export function mergeConfig(partial?: PartialRiskConfig): RiskConfig {
     patterns: { ...defaultConfig.patterns, ...partial.patterns },
     reviewers: { ...defaultConfig.reviewers, ...partial.reviewers },
     mode: partial.mode ?? defaultConfig.mode,
-    llm: { ...defaultConfig.llm, ...partial.llm }
+    llm: { ...defaultConfig.llm, ...partial.llm },
+    history: { ...defaultConfig.history, ...partial.history },
+    architecture: {
+      ...defaultConfig.architecture,
+      ...partial.architecture,
+      context: {
+        ...defaultConfig.architecture.context,
+        ...partial.architecture?.context
+      },
+      severityWeights: {
+        ...defaultConfig.architecture.severityWeights,
+        ...partial.architecture?.severityWeights
+      }
+    }
   };
+}
+
+function sameStringArray(left: readonly string[] | undefined, right: readonly string[]): boolean {
+  if (!left || left.length !== right.length) {
+    return false;
+  }
+  return left.every((value, index) => value === right[index]);
+}
+
+function pruneDefaultActionInputs(actionInputs?: PartialRiskConfig): PartialRiskConfig | undefined {
+  if (!actionInputs) {
+    return undefined;
+  }
+
+  const history =
+    actionInputs.history &&
+    (actionInputs.history.mode !== defaultConfig.history.mode ||
+      actionInputs.history.lookbackDays !== defaultConfig.history.lookbackDays ||
+      !sameStringArray(actionInputs.history.bugfixKeywords, defaultConfig.history.bugfixKeywords))
+      ? actionInputs.history
+      : undefined;
+  const architecture =
+    actionInputs.architecture &&
+    (actionInputs.architecture.mode !== defaultConfig.architecture.mode ||
+      actionInputs.architecture.maxDocChars !== defaultConfig.architecture.maxDocChars)
+      ? actionInputs.architecture
+      : undefined;
+
+  return {
+    ...actionInputs,
+    ...(history ? { history } : { history: undefined }),
+    ...(architecture ? { architecture } : { architecture: undefined })
+  };
+}
+
+export function mergeConfigWithActionInputs(loadedConfig?: PartialRiskConfig, actionInputs?: PartialRiskConfig): RiskConfig {
+  const prunedInputs = pruneDefaultActionInputs(actionInputs);
+
+  return mergeConfig({
+    ...loadedConfig,
+    ...prunedInputs,
+    history: { ...loadedConfig?.history, ...prunedInputs?.history },
+    architecture: {
+      ...loadedConfig?.architecture,
+      ...prunedInputs?.architecture,
+      context: { ...loadedConfig?.architecture?.context, ...prunedInputs?.architecture?.context },
+      severityWeights: { ...loadedConfig?.architecture?.severityWeights, ...prunedInputs?.architecture?.severityWeights }
+    }
+  });
 }
 
 export function riskLevelForScore(score: number, config: RiskConfig = defaultConfig): RiskLevel {

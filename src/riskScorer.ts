@@ -1,6 +1,10 @@
 import { minimatch } from "minimatch";
 import { clampScore, defaultConfig, riskLevelForScore } from "./rules";
-import type { ChangedFile, RiskConfig, RiskDriver, RiskResult } from "./types";
+import type { ChangedFile, HistoryRiskSummary, RiskConfig, RiskDriver, RiskResult } from "./types";
+
+export interface RiskScoringContext {
+  history?: HistoryRiskSummary;
+}
 
 function matchesAny(path: string, patterns: string[]): boolean {
   return patterns.some((pattern) => minimatch(path, pattern, { dot: true, nocase: true, matchBase: true }));
@@ -78,6 +82,15 @@ function buildReviewGuidance(drivers: RiskDriver[], reviewerAreas: string[]): st
   if (keys.has("filesChanged") || keys.has("linesChanged")) {
     guidance.push("Review broad changes by subsystem and prioritize the highest-impact paths.");
   }
+  if (keys.has("hotspotTouched") || keys.has("highChurnTouched")) {
+    guidance.push("Review recent changes to hotspot files before approving.");
+  }
+  if (keys.has("bugfixHotspotTouched") || keys.has("recentlyRevertedTouched")) {
+    guidance.push("Confirm regression coverage for files with recent bugfix or revert history.");
+  }
+  if (keys.has("hotspotTouched") || keys.has("highChurnTouched") || keys.has("bugfixHotspotTouched") || keys.has("recentlyRevertedTouched")) {
+    guidance.push("Ask for owner context if the PR changes a historically volatile subsystem.");
+  }
   if (guidance.length === 0) {
     guidance.push(`Standard review by ${reviewerAreas.join(", ")} should be sufficient.`);
   }
@@ -97,6 +110,18 @@ function buildRecommendedLabels(
 
   if (keys.has("noTestsChanged")) {
     labels.push("needs-tests");
+  }
+
+  if (keys.has("hotspotTouched") || keys.has("highChurnTouched") || keys.has("bugfixHotspotTouched")) {
+    labels.push("risk:hotspot");
+  }
+
+  if (keys.has("bugfixHotspotTouched") || keys.has("recentlyRevertedTouched")) {
+    labels.push("needs-regression-test");
+  }
+
+  if (keys.has("hotspotTouched") || keys.has("highChurnTouched") || keys.has("bugfixHotspotTouched") || keys.has("recentlyRevertedTouched")) {
+    labels.push("needs-owner-context");
   }
 
   if (
@@ -149,7 +174,8 @@ function buildDrivers(
   config: RiskConfig,
   testsChanged: boolean,
   deletedFiles: number,
-  includeReviewerSignals: boolean
+  includeReviewerSignals: boolean,
+  history?: HistoryRiskSummary
 ): RiskDriver[] {
   const drivers: RiskDriver[] = [];
   const totalChanges = files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
@@ -178,18 +204,32 @@ function buildDrivers(
     if (files.some((file) => matchesAny(file.filename, config.patterns.sensitive))) {
       addDriver(drivers, "sensitiveTouched", "Sensitive auth, payment, privacy, or data area touched", config.weights.sensitiveTouched);
     }
+    if (history?.available) {
+      if (history.hotspotFiles.some((file) => file.recentCommits >= config.history.recentCommitThreshold)) {
+        addDriver(drivers, "hotspotTouched", "Hotspot file touched", config.weights.hotspotTouched);
+      }
+      if (history.hotspotFiles.some((file) => file.recentChurn >= config.history.churnThreshold)) {
+        addDriver(drivers, "highChurnTouched", "High-churn file touched", config.weights.highChurnTouched);
+      }
+      if (history.hotspotFiles.some((file) => file.bugfixCommits >= config.history.bugfixCommitThreshold)) {
+        addDriver(drivers, "bugfixHotspotTouched", "File with recent bugfix history touched", config.weights.bugfixHotspotTouched);
+      }
+      if (history.hotspotFiles.some((file) => file.revertCommits >= config.history.revertCommitThreshold)) {
+        addDriver(drivers, "recentlyRevertedTouched", "File with recent revert history touched", config.weights.recentlyRevertedTouched);
+      }
+    }
   }
 
   return drivers;
 }
 
-export function scorePullRequest(files: ChangedFile[], config: RiskConfig = defaultConfig): RiskResult {
+export function scorePullRequest(files: ChangedFile[], config: RiskConfig = defaultConfig, context: RiskScoringContext = {}): RiskResult {
   const totalChanges = files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
   const deletedFiles = files.filter((file) => file.status === "removed").length;
   const testsChanged = files.some((file) => matchesAny(file.filename, config.patterns.tests));
 
-  const drivers = buildDrivers(files, config, testsChanged, deletedFiles, true);
-  const reviewQualityDrivers = buildDrivers(files, config, testsChanged, deletedFiles, false);
+  const drivers = buildDrivers(files, config, testsChanged, deletedFiles, true, context.history);
+  const reviewQualityDrivers = buildDrivers(files, config, testsChanged, deletedFiles, false, context.history);
   const score = clampScore(1 + baseScoreFromDrivers(drivers));
   const slopScore = clampScore(1 + baseScoreFromDrivers(reviewQualityDrivers));
   const reviewerAreas = reviewerAreasForFiles(files, config, testsChanged);
@@ -211,6 +251,7 @@ export function scorePullRequest(files: ChangedFile[], config: RiskConfig = defa
       totalChanges,
       deletedFiles,
       testsChanged
-    }
+    },
+    ...(context.history ? { history: context.history } : {})
   };
 }

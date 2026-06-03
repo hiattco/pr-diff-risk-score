@@ -2,7 +2,7 @@
 
 `pr-diff-risk-score` is a GitHub Action that analyzes a pull request diff and comments with a 1-10 risk score, the main risk drivers, suggested reviewer areas, and short review guidance.
 
-It is designed to help reviewers quickly spot risky PRs, especially in repositories where AI-generated or agent-authored changes are common.
+It is designed to help reviewers quickly spot risky PRs, especially in repositories where AI-generated or agent-authored changes are common. In context-aware mode, it can also use local repository history and explicitly configured Markdown architecture docs to explain why a small PR may be risky for this repository.
 
 ## Quick Start
 
@@ -22,12 +22,18 @@ jobs:
   risk-score:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - uses: hiattco/pr-diff-risk-score@v0.1.0
         with:
           github-token: ${{ github.token }}
           fail-threshold: "0"
           comment-mode: update
           mode: heuristic
+          history-mode: auto
+          architecture-mode: off
 ```
 
 Add this workflow to `.github/workflows/pr-risk-score.yml`. The action posts or updates PR comments when `comment-mode` is `update` or `new` and the workflow token has `issues: write` plus `pull-requests: write`.
@@ -89,8 +95,19 @@ Review guidance:
 | `config-path` | No | `.github/pr-risk-score.yml` | Optional YAML config file path. |
 | `mode` | No | `heuristic` | Judge mode. One of `heuristic`, `llm`, or `hybrid`. |
 | `llm-model` | No | | Optional model override. Falls back to repository variable `LLM_MODEL` and then action defaults. |
+| `history-mode` | No | `auto` | Repository history mode. One of `off`, `auto`, or `local-git`. |
+| `history-days` | No | `180` | Lookback window for recent churn, bugfix, and revert history. |
+| `bugfix-keywords` | No | `fix,bug,regression,revert,hotfix,incident` | Comma-separated commit-message keywords used to identify bugfix or revert history. |
+| `architecture-mode` | No | `off` | Architecture adherence mode. One of `off`, `auto`, or `llm`. |
+| `architecture-max-doc-chars` | No | `12000` | Maximum total Markdown architecture context sent to the architecture assessment. |
 
 `heuristic` is the default. `llm` and `hybrid` call an OpenAI-compatible chat completion endpoint when `llm.enabled` is `true`. When `llm.enabled` is `false`, requesting `llm` or `hybrid` logs a warning and falls back to `heuristic`.
+
+## Context-Aware Scoring
+
+History scoring uses local Git history when available. For best results, add `actions/checkout@v4` with `fetch-depth: 0`. Existing workflows that do not checkout the repository still work; `history-mode: auto` skips gracefully when local history is unavailable.
+
+Architecture scoring is LLM-only and evaluates only Markdown docs explicitly configured by path. It supports `.md`, `.mdx`, and `.markdown` text, including Mermaid fences as text. It does not OCR images or infer rules from arbitrary Markdown files. Use clear `must`/`should`/`may` architecture docs for the strongest signal.
 
 ## OpenRouter LLM Mode
 
@@ -157,6 +174,9 @@ The scorer starts at `1` and adds points for risk signals, then clamps the final
 | Sensitive auth, security, payment, privacy, or data paths touched | +3 |
 | Generated-looking or bundled files changed | +2 |
 | Any / 5+ deleted files | +1 / +2 |
+| Hotspot or high-churn file touched | +2 |
+| Recent bugfix or revert history touched | +2 / +3 |
+| Architecture drift | +1 to +4 |
 
 Risk levels:
 
@@ -214,6 +234,29 @@ patterns:
     - "**/*.spec.*"
     - "**/__tests__/**"
     - "tests/**"
+
+history:
+  enabled: true
+  mode: auto
+  lookbackDays: 180
+  recentCommitThreshold: 8
+  churnThreshold: 500
+  bugfixCommitThreshold: 2
+  revertCommitThreshold: 1
+  maxHotspotFilesShown: 5
+
+architecture:
+  enabled: true
+  mode: auto
+  strict: false
+  context:
+    docs:
+      - id: backend
+        paths:
+          - docs/architecture/backend.md
+        appliesTo:
+          - src/api/**
+          - src/services/**
 ```
 
 Action inputs take precedence over config defaults. For example, `with: { mode: heuristic }` keeps the action in heuristic mode even if the config file sets another mode.

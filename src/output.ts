@@ -24,7 +24,9 @@ export function serializeRiskResult(result: RiskResult): string {
     recommendedLabels: result.recommendedLabels,
     reviewerAreas: result.reviewerAreas,
     reviewGuidance: result.reviewGuidance,
-    stats: orderedStats
+    stats: orderedStats,
+    ...(result.history ? { history: result.history } : {}),
+    ...(result.architecture ? { architecture: result.architecture } : {})
   };
 
   return JSON.stringify(orderedResult);

@@ -3,14 +3,16 @@ import * as github from "@actions/github";
 import fs from "node:fs";
 import path from "node:path";
 import yaml from "js-yaml";
+import { assessArchitecture, mergeArchitectureAssessment } from "./architecture";
 import { renderRiskComment } from "./comment";
 import { getPullRequestContext, listChangedFiles, updateRiskComment, createRiskComment } from "./github";
+import { collectHistorySignals } from "./history";
 import { analyzePullRequestWithLlm } from "./llm";
-import { mergeConfig } from "./rules";
+import { mergeConfigWithActionInputs } from "./rules";
 import { scorePullRequest } from "./riskScorer";
 import { serializeRiskResult } from "./output";
 import { resolveJudgeMode } from "./judge";
-import type { CommentMode, PartialRiskConfig } from "./types";
+import type { ArchitectureMode, CommentMode, HistoryMode, PartialRiskConfig } from "./types";
 
 function parseFailThreshold(value: string): number {
   const parsed = Number(value);
@@ -25,6 +27,35 @@ function parseCommentMode(value: string): CommentMode {
     return value;
   }
   throw new Error("comment-mode must be one of: update, new, off.");
+}
+
+function parseHistoryMode(value: string): HistoryMode {
+  if (value === "off" || value === "auto" || value === "local-git") {
+    return value;
+  }
+  throw new Error("history-mode must be one of: off, auto, local-git.");
+}
+
+function parseArchitectureMode(value: string): ArchitectureMode {
+  if (value === "off" || value === "auto" || value === "llm") {
+    return value;
+  }
+  throw new Error("architecture-mode must be one of: off, auto, llm.");
+}
+
+function parsePositiveInteger(value: string, inputName: string): number {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${inputName} must be a positive integer.`);
+  }
+  return parsed;
+}
+
+function parseCsv(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter((item) => item.length > 0);
 }
 
 function loadConfig(configPath: string): PartialRiskConfig | undefined {
@@ -43,6 +74,26 @@ function loadConfig(configPath: string): PartialRiskConfig | undefined {
   return loaded as PartialRiskConfig;
 }
 
+function inputConfig(): PartialRiskConfig {
+  const historyModeInput = core.getInput("history-mode");
+  const historyDaysInput = core.getInput("history-days");
+  const bugfixKeywordsInput = core.getInput("bugfix-keywords");
+  const architectureModeInput = core.getInput("architecture-mode");
+  const architectureMaxDocCharsInput = core.getInput("architecture-max-doc-chars");
+
+  return {
+    history: {
+      ...(historyModeInput ? { mode: parseHistoryMode(historyModeInput), enabled: parseHistoryMode(historyModeInput) !== "off" } : {}),
+      ...(historyDaysInput ? { lookbackDays: parsePositiveInteger(historyDaysInput, "history-days") } : {}),
+      ...(bugfixKeywordsInput ? { bugfixKeywords: parseCsv(bugfixKeywordsInput) } : {})
+    },
+    architecture: {
+      ...(architectureModeInput ? { mode: parseArchitectureMode(architectureModeInput), enabled: parseArchitectureMode(architectureModeInput) !== "off" } : {}),
+      ...(architectureMaxDocCharsInput ? { maxDocChars: parsePositiveInteger(architectureMaxDocCharsInput, "architecture-max-doc-chars") } : {})
+    }
+  };
+}
+
 export async function run(): Promise<void> {
   const token = core.getInput("github-token", { required: true });
   const failThreshold = parseFailThreshold(core.getInput("fail-threshold") || "0");
@@ -54,12 +105,23 @@ export async function run(): Promise<void> {
   const octokit = github.getOctokit(token);
   const prContext = getPullRequestContext();
   const loadedConfig = loadConfig(configPath);
-  const config = mergeConfig(loadedConfig);
+  const actionInputConfig = inputConfig();
+  const config = mergeConfigWithActionInputs(loadedConfig, actionInputConfig);
   const env = llmModelOverride ? { ...process.env, LLM_MODEL: llmModelOverride } : process.env;
   const judgeMode = resolveJudgeMode(judgeModeInput, config.mode, config);
   const files = await listChangedFiles(octokit, prContext);
-  const heuristicResult = scorePullRequest(files, config);
-  const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode, env);
+  const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
+  const history = await collectHistorySignals(files, config, workspace);
+  if (history.skippedReason) {
+    core.warning(history.skippedReason);
+  }
+  const heuristicResult = scorePullRequest(files, config, { history });
+  const architecture = await assessArchitecture(files, config, workspace, env, judgeMode);
+  if (architecture.skippedReason) {
+    core.warning(architecture.skippedReason);
+  }
+  const contextualResult = mergeArchitectureAssessment(heuristicResult, architecture, config);
+  const result = await analyzePullRequestWithLlm(files, contextualResult, config, judgeMode, env);
   const comment = renderRiskComment(result);
   core.info(`Using judge mode: ${judgeMode}.`);
 

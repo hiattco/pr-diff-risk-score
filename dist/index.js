@@ -182,7 +182,7 @@ var require_file_command = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.prepareKeyValueMessage = exports2.issueFileCommand = void 0;
     var crypto = __importStar(require("crypto"));
-    var fs2 = __importStar(require("fs"));
+    var fs3 = __importStar(require("fs"));
     var os = __importStar(require("os"));
     var utils_1 = require_utils();
     function issueFileCommand(command, message) {
@@ -190,10 +190,10 @@ var require_file_command = __commonJS({
       if (!filePath) {
         throw new Error(`Unable to find environment variable for file command ${command}`);
       }
-      if (!fs2.existsSync(filePath)) {
+      if (!fs3.existsSync(filePath)) {
         throw new Error(`Missing file at path: ${filePath}`);
       }
-      fs2.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
+      fs3.appendFileSync(filePath, `${(0, utils_1.toCommandValue)(message)}${os.EOL}`, {
         encoding: "utf8"
       });
     }
@@ -1333,14 +1333,14 @@ var require_util = __commonJS({
         }
         const port = url.port != null ? url.port : url.protocol === "https:" ? 443 : 80;
         let origin = url.origin != null ? url.origin : `${url.protocol || ""}//${url.hostname || ""}:${port}`;
-        let path3 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
+        let path4 = url.path != null ? url.path : `${url.pathname || ""}${url.search || ""}`;
         if (origin[origin.length - 1] === "/") {
           origin = origin.slice(0, origin.length - 1);
         }
-        if (path3 && path3[0] !== "/") {
-          path3 = `/${path3}`;
+        if (path4 && path4[0] !== "/") {
+          path4 = `/${path4}`;
         }
-        return new URL(`${origin}${path3}`);
+        return new URL(`${origin}${path4}`);
       }
       if (!isHttpOrHttpsPrefixed(url.origin || url.protocol)) {
         throw new InvalidArgumentError("Invalid URL protocol: the URL must start with `http:` or `https:`.");
@@ -1791,39 +1791,39 @@ var require_diagnostics = __commonJS({
       });
       diagnosticsChannel.channel("undici:client:sendHeaders").subscribe((evt) => {
         const {
-          request: { method, path: path3, origin }
+          request: { method, path: path4, origin }
         } = evt;
-        debuglog("sending request to %s %s/%s", method, origin, path3);
+        debuglog("sending request to %s %s/%s", method, origin, path4);
       });
       diagnosticsChannel.channel("undici:request:headers").subscribe((evt) => {
         const {
-          request: { method, path: path3, origin },
+          request: { method, path: path4, origin },
           response: { statusCode }
         } = evt;
         debuglog(
           "received response to %s %s/%s - HTTP %d",
           method,
           origin,
-          path3,
+          path4,
           statusCode
         );
       });
       diagnosticsChannel.channel("undici:request:trailers").subscribe((evt) => {
         const {
-          request: { method, path: path3, origin }
+          request: { method, path: path4, origin }
         } = evt;
-        debuglog("trailers received from %s %s/%s", method, origin, path3);
+        debuglog("trailers received from %s %s/%s", method, origin, path4);
       });
       diagnosticsChannel.channel("undici:request:error").subscribe((evt) => {
         const {
-          request: { method, path: path3, origin },
+          request: { method, path: path4, origin },
           error
         } = evt;
         debuglog(
           "request to %s %s/%s errored - %s",
           method,
           origin,
-          path3,
+          path4,
           error.message
         );
       });
@@ -1872,9 +1872,9 @@ var require_diagnostics = __commonJS({
         });
         diagnosticsChannel.channel("undici:client:sendHeaders").subscribe((evt) => {
           const {
-            request: { method, path: path3, origin }
+            request: { method, path: path4, origin }
           } = evt;
-          debuglog("sending request to %s %s/%s", method, origin, path3);
+          debuglog("sending request to %s %s/%s", method, origin, path4);
         });
       }
       diagnosticsChannel.channel("undici:websocket:open").subscribe((evt) => {
@@ -1937,7 +1937,7 @@ var require_request = __commonJS({
     var kHandler = /* @__PURE__ */ Symbol("handler");
     var Request = class {
       constructor(origin, {
-        path: path3,
+        path: path4,
         method,
         body,
         headers,
@@ -1952,11 +1952,11 @@ var require_request = __commonJS({
         expectContinue,
         servername
       }, handler2) {
-        if (typeof path3 !== "string") {
+        if (typeof path4 !== "string") {
           throw new InvalidArgumentError("path must be a string");
-        } else if (path3[0] !== "/" && !(path3.startsWith("http://") || path3.startsWith("https://")) && method !== "CONNECT") {
+        } else if (path4[0] !== "/" && !(path4.startsWith("http://") || path4.startsWith("https://")) && method !== "CONNECT") {
           throw new InvalidArgumentError("path must be an absolute URL or start with a slash");
-        } else if (invalidPathRegex.test(path3)) {
+        } else if (invalidPathRegex.test(path4)) {
           throw new InvalidArgumentError("invalid request path");
         }
         if (typeof method !== "string") {
@@ -2022,7 +2022,7 @@ var require_request = __commonJS({
         this.completed = false;
         this.aborted = false;
         this.upgrade = upgrade || null;
-        this.path = query ? buildURL(path3, query) : path3;
+        this.path = query ? buildURL(path4, query) : path4;
         this.origin = origin;
         this.idempotent = idempotent == null ? method === "HEAD" || method === "GET" : idempotent;
         this.blocking = blocking == null ? false : blocking;
@@ -6586,7 +6586,7 @@ var require_client_h1 = __commonJS({
       return method !== "GET" && method !== "HEAD" && method !== "OPTIONS" && method !== "TRACE" && method !== "CONNECT";
     }
     function writeH1(client, request2) {
-      const { method, path: path3, host, upgrade, blocking, reset } = request2;
+      const { method, path: path4, host, upgrade, blocking, reset } = request2;
       let { body, headers, contentLength } = request2;
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH" || method === "QUERY" || method === "PROPFIND" || method === "PROPPATCH";
       if (util.isFormDataLike(body)) {
@@ -6652,7 +6652,7 @@ var require_client_h1 = __commonJS({
       if (blocking) {
         socket[kBlocking] = true;
       }
-      let header = `${method} ${path3} HTTP/1.1\r
+      let header = `${method} ${path4} HTTP/1.1\r
 `;
       if (typeof host === "string") {
         header += `host: ${host}\r
@@ -7178,7 +7178,7 @@ var require_client_h2 = __commonJS({
     }
     function writeH2(client, request2) {
       const session = client[kHTTP2Session];
-      const { method, path: path3, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
+      const { method, path: path4, host, upgrade, expectContinue, signal, headers: reqHeaders } = request2;
       let { body } = request2;
       if (upgrade) {
         util.errorRequest(client, request2, new Error("Upgrade not supported for H2"));
@@ -7245,7 +7245,7 @@ var require_client_h2 = __commonJS({
         });
         return true;
       }
-      headers[HTTP2_HEADER_PATH] = path3;
+      headers[HTTP2_HEADER_PATH] = path4;
       headers[HTTP2_HEADER_SCHEME] = "https";
       const expectsPayload = method === "PUT" || method === "POST" || method === "PATCH";
       if (body && typeof body.read === "function") {
@@ -7598,9 +7598,9 @@ var require_redirect_handler = __commonJS({
           return this.handler.onHeaders(statusCode, headers, resume, statusText);
         }
         const { origin, pathname, search } = util.parseURL(new URL(this.location, this.opts.origin && new URL(this.opts.path, this.opts.origin)));
-        const path3 = search ? `${pathname}${search}` : pathname;
+        const path4 = search ? `${pathname}${search}` : pathname;
         this.opts.headers = cleanRequestHeaders(this.opts.headers, statusCode === 303, this.opts.origin !== origin);
-        this.opts.path = path3;
+        this.opts.path = path4;
         this.opts.origin = origin;
         this.opts.maxRedirections = 0;
         this.opts.query = null;
@@ -8835,10 +8835,10 @@ var require_proxy_agent = __commonJS({
         };
         const {
           origin,
-          path: path3 = "/",
+          path: path4 = "/",
           headers = {}
         } = opts;
-        opts.path = origin + path3;
+        opts.path = origin + path4;
         if (!("host" in headers) && !("Host" in headers)) {
           const { host } = new URL2(origin);
           headers.host = host;
@@ -10759,20 +10759,20 @@ var require_mock_utils = __commonJS({
       }
       return true;
     }
-    function safeUrl(path3) {
-      if (typeof path3 !== "string") {
-        return path3;
+    function safeUrl(path4) {
+      if (typeof path4 !== "string") {
+        return path4;
       }
-      const pathSegments = path3.split("?");
+      const pathSegments = path4.split("?");
       if (pathSegments.length !== 2) {
-        return path3;
+        return path4;
       }
       const qp = new URLSearchParams(pathSegments.pop());
       qp.sort();
       return [...pathSegments, qp.toString()].join("?");
     }
-    function matchKey(mockDispatch2, { path: path3, method, body, headers }) {
-      const pathMatch = matchValue(mockDispatch2.path, path3);
+    function matchKey(mockDispatch2, { path: path4, method, body, headers }) {
+      const pathMatch = matchValue(mockDispatch2.path, path4);
       const methodMatch = matchValue(mockDispatch2.method, method);
       const bodyMatch = typeof mockDispatch2.body !== "undefined" ? matchValue(mockDispatch2.body, body) : true;
       const headersMatch = matchHeaders(mockDispatch2, headers);
@@ -10794,7 +10794,7 @@ var require_mock_utils = __commonJS({
     function getMockDispatch(mockDispatches, key) {
       const basePath = key.query ? buildURL(key.path, key.query) : key.path;
       const resolvedPath = typeof basePath === "string" ? safeUrl(basePath) : basePath;
-      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path3 }) => matchValue(safeUrl(path3), resolvedPath));
+      let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path: path4 }) => matchValue(safeUrl(path4), resolvedPath));
       if (matchedMockDispatches.length === 0) {
         throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`);
       }
@@ -10832,9 +10832,9 @@ var require_mock_utils = __commonJS({
       }
     }
     function buildKey(opts) {
-      const { path: path3, method, body, headers, query } = opts;
+      const { path: path4, method, body, headers, query } = opts;
       return {
-        path: path3,
+        path: path4,
         method,
         body,
         headers,
@@ -11140,7 +11140,7 @@ var require_mock_interceptor = __commonJS({
 var require_mock_client = __commonJS({
   "node_modules/undici/lib/mock/mock-client.js"(exports2, module2) {
     "use strict";
-    var { promisify } = require("node:util");
+    var { promisify: promisify2 } = require("node:util");
     var Client = require_client();
     var { buildMockDispatch } = require_mock_utils();
     var {
@@ -11180,7 +11180,7 @@ var require_mock_client = __commonJS({
         return new MockInterceptor(opts, this[kDispatches]);
       }
       async [kClose]() {
-        await promisify(this[kOriginalClose])();
+        await promisify2(this[kOriginalClose])();
         this[kConnected] = 0;
         this[kMockAgent][Symbols.kClients].delete(this[kOrigin]);
       }
@@ -11193,7 +11193,7 @@ var require_mock_client = __commonJS({
 var require_mock_pool = __commonJS({
   "node_modules/undici/lib/mock/mock-pool.js"(exports2, module2) {
     "use strict";
-    var { promisify } = require("node:util");
+    var { promisify: promisify2 } = require("node:util");
     var Pool = require_pool();
     var { buildMockDispatch } = require_mock_utils();
     var {
@@ -11233,7 +11233,7 @@ var require_mock_pool = __commonJS({
         return new MockInterceptor(opts, this[kDispatches]);
       }
       async [kClose]() {
-        await promisify(this[kOriginalClose])();
+        await promisify2(this[kOriginalClose])();
         this[kConnected] = 0;
         this[kMockAgent][Symbols.kClients].delete(this[kOrigin]);
       }
@@ -11297,10 +11297,10 @@ var require_pending_interceptors_formatter = __commonJS({
       }
       format(pendingInterceptors) {
         const withPrettyHeaders = pendingInterceptors.map(
-          ({ method, path: path3, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
+          ({ method, path: path4, data: { statusCode }, persist, times, timesInvoked, origin }) => ({
             Method: method,
             Origin: origin,
-            Path: path3,
+            Path: path4,
             "Status code": statusCode,
             Persistent: persist ? PERSISTENT : NOT_PERSISTENT,
             Invocations: timesInvoked,
@@ -16181,9 +16181,9 @@ var require_util6 = __commonJS({
         }
       }
     }
-    function validateCookiePath(path3) {
-      for (let i = 0; i < path3.length; ++i) {
-        const code = path3.charCodeAt(i);
+    function validateCookiePath(path4) {
+      for (let i = 0; i < path4.length; ++i) {
+        const code = path4.charCodeAt(i);
         if (code < 32 || // exclude CTLs (0-31)
         code === 127 || // DEL
         code === 59) {
@@ -18860,11 +18860,11 @@ var require_undici = __commonJS({
           if (typeof opts.path !== "string") {
             throw new InvalidArgumentError("invalid opts.path");
           }
-          let path3 = opts.path;
+          let path4 = opts.path;
           if (!opts.path.startsWith("/")) {
-            path3 = `/${path3}`;
+            path4 = `/${path4}`;
           }
-          url = new URL(util.parseOrigin(url).origin + path3);
+          url = new URL(util.parseOrigin(url).origin + path4);
         } else {
           if (!opts) {
             opts = typeof url === "object" ? url : {};
@@ -19115,7 +19115,7 @@ var require_lib = __commonJS({
       const parsedUrl = new URL(requestUrl);
       return parsedUrl.protocol === "https:";
     }
-    var HttpClient3 = class {
+    var HttpClient4 = class {
       constructor(userAgent2, handlers, requestOptions) {
         this._ignoreSslError = false;
         this._allowRedirects = true;
@@ -19621,7 +19621,7 @@ var require_lib = __commonJS({
         });
       }
     };
-    exports2.HttpClient = HttpClient3;
+    exports2.HttpClient = HttpClient4;
     var lowercaseKeys2 = (obj) => Object.keys(obj).reduce((c, k) => (c[k.toLowerCase()] = obj[k], c), {});
   }
 });
@@ -20155,7 +20155,7 @@ var require_path_utils = __commonJS({
     };
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.toPlatformPath = exports2.toWin32Path = exports2.toPosixPath = void 0;
-    var path3 = __importStar(require("path"));
+    var path4 = __importStar(require("path"));
     function toPosixPath(pth) {
       return pth.replace(/[\\]/g, "/");
     }
@@ -20165,7 +20165,7 @@ var require_path_utils = __commonJS({
     }
     exports2.toWin32Path = toWin32Path;
     function toPlatformPath(pth) {
-      return pth.replace(/[/\\]/g, path3.sep);
+      return pth.replace(/[/\\]/g, path4.sep);
     }
     exports2.toPlatformPath = toPlatformPath;
   }
@@ -20228,12 +20228,12 @@ var require_io_util = __commonJS({
     var _a2;
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.getCmdPath = exports2.tryGetExecutablePath = exports2.isRooted = exports2.isDirectory = exports2.exists = exports2.READONLY = exports2.UV_FS_O_EXLOCK = exports2.IS_WINDOWS = exports2.unlink = exports2.symlink = exports2.stat = exports2.rmdir = exports2.rm = exports2.rename = exports2.readlink = exports2.readdir = exports2.open = exports2.mkdir = exports2.lstat = exports2.copyFile = exports2.chmod = void 0;
-    var fs2 = __importStar(require("fs"));
-    var path3 = __importStar(require("path"));
-    _a2 = fs2.promises, exports2.chmod = _a2.chmod, exports2.copyFile = _a2.copyFile, exports2.lstat = _a2.lstat, exports2.mkdir = _a2.mkdir, exports2.open = _a2.open, exports2.readdir = _a2.readdir, exports2.readlink = _a2.readlink, exports2.rename = _a2.rename, exports2.rm = _a2.rm, exports2.rmdir = _a2.rmdir, exports2.stat = _a2.stat, exports2.symlink = _a2.symlink, exports2.unlink = _a2.unlink;
+    var fs3 = __importStar(require("fs"));
+    var path4 = __importStar(require("path"));
+    _a2 = fs3.promises, exports2.chmod = _a2.chmod, exports2.copyFile = _a2.copyFile, exports2.lstat = _a2.lstat, exports2.mkdir = _a2.mkdir, exports2.open = _a2.open, exports2.readdir = _a2.readdir, exports2.readlink = _a2.readlink, exports2.rename = _a2.rename, exports2.rm = _a2.rm, exports2.rmdir = _a2.rmdir, exports2.stat = _a2.stat, exports2.symlink = _a2.symlink, exports2.unlink = _a2.unlink;
     exports2.IS_WINDOWS = process.platform === "win32";
     exports2.UV_FS_O_EXLOCK = 268435456;
-    exports2.READONLY = fs2.constants.O_RDONLY;
+    exports2.READONLY = fs3.constants.O_RDONLY;
     function exists(fsPath) {
       return __awaiter2(this, void 0, void 0, function* () {
         try {
@@ -20278,7 +20278,7 @@ var require_io_util = __commonJS({
         }
         if (stats && stats.isFile()) {
           if (exports2.IS_WINDOWS) {
-            const upperExt = path3.extname(filePath).toUpperCase();
+            const upperExt = path4.extname(filePath).toUpperCase();
             if (extensions.some((validExt) => validExt.toUpperCase() === upperExt)) {
               return filePath;
             }
@@ -20302,11 +20302,11 @@ var require_io_util = __commonJS({
           if (stats && stats.isFile()) {
             if (exports2.IS_WINDOWS) {
               try {
-                const directory = path3.dirname(filePath);
-                const upperName = path3.basename(filePath).toUpperCase();
+                const directory = path4.dirname(filePath);
+                const upperName = path4.basename(filePath).toUpperCase();
                 for (const actualName of yield exports2.readdir(directory)) {
                   if (upperName === actualName.toUpperCase()) {
-                    filePath = path3.join(directory, actualName);
+                    filePath = path4.join(directory, actualName);
                     break;
                   }
                 }
@@ -20401,7 +20401,7 @@ var require_io = __commonJS({
     Object.defineProperty(exports2, "__esModule", { value: true });
     exports2.findInPath = exports2.which = exports2.mkdirP = exports2.rmRF = exports2.mv = exports2.cp = void 0;
     var assert_1 = require("assert");
-    var path3 = __importStar(require("path"));
+    var path4 = __importStar(require("path"));
     var ioUtil = __importStar(require_io_util());
     function cp(source, dest, options = {}) {
       return __awaiter2(this, void 0, void 0, function* () {
@@ -20410,7 +20410,7 @@ var require_io = __commonJS({
         if (destStat && destStat.isFile() && !force) {
           return;
         }
-        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path3.join(dest, path3.basename(source)) : dest;
+        const newDest = destStat && destStat.isDirectory() && copySourceDirectory ? path4.join(dest, path4.basename(source)) : dest;
         if (!(yield ioUtil.exists(source))) {
           throw new Error(`no such file or directory: ${source}`);
         }
@@ -20422,7 +20422,7 @@ var require_io = __commonJS({
             yield cpDirRecursive(source, newDest, 0, force);
           }
         } else {
-          if (path3.relative(source, newDest) === "") {
+          if (path4.relative(source, newDest) === "") {
             throw new Error(`'${newDest}' and '${source}' are the same file`);
           }
           yield copyFile(source, newDest, force);
@@ -20435,7 +20435,7 @@ var require_io = __commonJS({
         if (yield ioUtil.exists(dest)) {
           let destExists = true;
           if (yield ioUtil.isDirectory(dest)) {
-            dest = path3.join(dest, path3.basename(source));
+            dest = path4.join(dest, path4.basename(source));
             destExists = yield ioUtil.exists(dest);
           }
           if (destExists) {
@@ -20446,7 +20446,7 @@ var require_io = __commonJS({
             }
           }
         }
-        yield mkdirP(path3.dirname(dest));
+        yield mkdirP(path4.dirname(dest));
         yield ioUtil.rename(source, dest);
       });
     }
@@ -20509,7 +20509,7 @@ var require_io = __commonJS({
         }
         const extensions = [];
         if (ioUtil.IS_WINDOWS && process.env["PATHEXT"]) {
-          for (const extension of process.env["PATHEXT"].split(path3.delimiter)) {
+          for (const extension of process.env["PATHEXT"].split(path4.delimiter)) {
             if (extension) {
               extensions.push(extension);
             }
@@ -20522,12 +20522,12 @@ var require_io = __commonJS({
           }
           return [];
         }
-        if (tool.includes(path3.sep)) {
+        if (tool.includes(path4.sep)) {
           return [];
         }
         const directories = [];
         if (process.env.PATH) {
-          for (const p of process.env.PATH.split(path3.delimiter)) {
+          for (const p of process.env.PATH.split(path4.delimiter)) {
             if (p) {
               directories.push(p);
             }
@@ -20535,7 +20535,7 @@ var require_io = __commonJS({
         }
         const matches = [];
         for (const directory of directories) {
-          const filePath = yield ioUtil.tryGetExecutablePath(path3.join(directory, tool), extensions);
+          const filePath = yield ioUtil.tryGetExecutablePath(path4.join(directory, tool), extensions);
           if (filePath) {
             matches.push(filePath);
           }
@@ -20651,7 +20651,7 @@ var require_toolrunner = __commonJS({
     var os = __importStar(require("os"));
     var events = __importStar(require("events"));
     var child = __importStar(require("child_process"));
-    var path3 = __importStar(require("path"));
+    var path4 = __importStar(require("path"));
     var io = __importStar(require_io());
     var ioUtil = __importStar(require_io_util());
     var timers_1 = require("timers");
@@ -20866,7 +20866,7 @@ var require_toolrunner = __commonJS({
       exec() {
         return __awaiter2(this, void 0, void 0, function* () {
           if (!ioUtil.isRooted(this.toolPath) && (this.toolPath.includes("/") || IS_WINDOWS && this.toolPath.includes("\\"))) {
-            this.toolPath = path3.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
+            this.toolPath = path4.resolve(process.cwd(), this.options.cwd || process.cwd(), this.toolPath);
           }
           this.toolPath = yield io.which(this.toolPath, true);
           return new Promise((resolve, reject) => __awaiter2(this, void 0, void 0, function* () {
@@ -21366,7 +21366,7 @@ var require_core = __commonJS({
     var file_command_1 = require_file_command();
     var utils_1 = require_utils();
     var os = __importStar(require("os"));
-    var path3 = __importStar(require("path"));
+    var path4 = __importStar(require("path"));
     var oidc_utils_1 = require_oidc_utils();
     var ExitCode;
     (function(ExitCode2) {
@@ -21394,7 +21394,7 @@ var require_core = __commonJS({
       } else {
         (0, command_1.issueCommand)("add-path", {}, inputPath);
       }
-      process.env["PATH"] = `${inputPath}${path3.delimiter}${process.env["PATH"]}`;
+      process.env["PATH"] = `${inputPath}${path4.delimiter}${process.env["PATH"]}`;
     }
     exports2.addPath = addPath;
     function getInput2(name, options) {
@@ -21458,10 +21458,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error;
-    function warning3(message, properties = {}) {
+    function warning4(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning3;
+    exports2.warning = warning4;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -21684,8 +21684,8 @@ var Context = class {
       if ((0, import_fs.existsSync)(process.env.GITHUB_EVENT_PATH)) {
         this.payload = JSON.parse((0, import_fs.readFileSync)(process.env.GITHUB_EVENT_PATH, { encoding: "utf8" }));
       } else {
-        const path3 = process.env.GITHUB_EVENT_PATH;
-        process.stdout.write(`GITHUB_EVENT_PATH ${path3} does not exist${import_os.EOL}`);
+        const path4 = process.env.GITHUB_EVENT_PATH;
+        process.stdout.write(`GITHUB_EVENT_PATH ${path4} does not exist${import_os.EOL}`);
       }
     }
     this.eventName = process.env.GITHUB_EVENT_NAME;
@@ -22392,7 +22392,7 @@ async function fetchWrapper(requestOptions) {
   const log = requestOptions.request?.log || console;
   const parseSuccessResponseBody = requestOptions.request?.parseSuccessResponseBody !== false;
   const body = isPlainObject2(requestOptions.body) || Array.isArray(requestOptions.body) ? JSONStringify(requestOptions.body) : requestOptions.body;
-  const requestHeaders = Object.fromEntries(
+  const requestHeaders2 = Object.fromEntries(
     Object.entries(requestOptions.headers).map(([name, value]) => [
       name,
       String(value)
@@ -22404,7 +22404,7 @@ async function fetchWrapper(requestOptions) {
       method: requestOptions.method,
       body,
       redirect: requestOptions.request?.redirect,
-      headers: requestHeaders,
+      headers: requestHeaders2,
       signal: requestOptions.request?.signal,
       // duplex must be set if request.body is ReadableStream or Async Iterables.
       // See https://fetch.spec.whatwg.org/#dom-requestinit-duplex.
@@ -25417,7 +25417,7 @@ function getOctokit(token, options, ...additionalPlugins) {
 
 // src/index.ts
 var import_node_fs = __toESM(require("node:fs"));
-var import_node_path = __toESM(require("node:path"));
+var import_node_path2 = __toESM(require("node:path"));
 
 // node_modules/js-yaml/dist/js-yaml.mjs
 var __create2 = Object.create;
@@ -27781,510 +27781,10 @@ var import_js_yaml = /* @__PURE__ */ __toESM2((/* @__PURE__ */ __commonJSMin(((e
 var { Type, Schema, FAILSAFE_SCHEMA, JSON_SCHEMA, CORE_SCHEMA, DEFAULT_SCHEMA, load, loadAll, dump, YAMLException, types, safeLoad, safeLoadAll, safeDump } = import_js_yaml.default;
 var index_vite_proxy_tmp_default = import_js_yaml.default;
 
-// src/comment.ts
-var COMMENT_MARKER = "<!-- pr-diff-risk-score -->";
-function bulletList(items) {
-  return items.map((item) => `- ${item}`).join("\n");
-}
-function renderRiskComment(result) {
-  const drivers = result.drivers.length > 0 ? result.drivers.map((driver) => `${driver.label} (+${driver.points})`) : ["No major risk drivers detected"];
-  const slopDrivers = result.slopDrivers.length > 0 ? result.slopDrivers.map((driver) => `${driver.label} (+${driver.points})`) : ["No major review-quality drivers detected"];
-  return `${COMMENT_MARKER}
-## PR Diff Risk Score
-
-**Risk score:** ${result.score}/10  
-**Risk level:** ${result.level}
-**Review-quality score:** ${result.slopScore}/10
-**Overall score:** ${result.overallScore}/10
-
-### Main drivers
-${bulletList(drivers)}
-
-### Review-quality drivers
-${bulletList(slopDrivers)}
-
-### Recommended labels
-${bulletList(result.recommendedLabels)}
-
-### Suggested reviewer area
-${bulletList(result.reviewerAreas)}
-
-### Review guidance
-${bulletList(result.reviewGuidance)}
-
-_Scored ${result.stats.filesChanged} changed file(s) with ${result.stats.totalChanges} total addition/deletion line changes._`;
-}
-
-// src/github.ts
-function getPullRequestContext() {
-  const pullRequest = context2.payload.pull_request;
-  if (!pullRequest) {
-    throw new Error("This action must run on a pull_request event.");
-  }
-  return {
-    owner: context2.repo.owner,
-    repo: context2.repo.repo,
-    pullNumber: pullRequest.number
-  };
-}
-async function listChangedFiles(octokit, context3) {
-  const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
-    owner: context3.owner,
-    repo: context3.repo,
-    pull_number: context3.pullNumber,
-    per_page: 100
-  });
-  return files.map((file) => ({
-    filename: file.filename,
-    status: file.status,
-    additions: file.additions,
-    deletions: file.deletions,
-    changes: file.changes,
-    patch: file.patch
-  }));
-}
-async function createRiskComment(octokit, context3, body) {
-  await octokit.rest.issues.createComment({
-    owner: context3.owner,
-    repo: context3.repo,
-    issue_number: context3.pullNumber,
-    body
-  });
-}
-async function updateRiskComment(octokit, context3, body) {
-  const comments = await octokit.paginate(octokit.rest.issues.listComments, {
-    owner: context3.owner,
-    repo: context3.repo,
-    issue_number: context3.pullNumber,
-    per_page: 100
-  });
-  const previous = comments.find((comment) => comment.user?.type === "Bot" && comment.body?.includes(COMMENT_MARKER));
-  if (!previous) {
-    await createRiskComment(octokit, context3, body);
-    return "created";
-  }
-  await octokit.rest.issues.updateComment({
-    owner: context3.owner,
-    repo: context3.repo,
-    comment_id: previous.id,
-    body
-  });
-  return "updated";
-}
-
-// src/llm.ts
-var core = __toESM(require_core());
+// src/architecture.ts
 var import_http_client = __toESM(require_lib());
-
-// src/rules.ts
-var defaultConfig = {
-  weights: {
-    filesChanged5: 1,
-    filesChanged15: 2,
-    filesChanged30: 3,
-    linesChanged200: 1,
-    linesChanged700: 2,
-    linesChanged1500: 3,
-    configTouched: 2,
-    migrationTouched: 3,
-    noTestsChanged: 2,
-    sensitiveTouched: 3,
-    generatedTouched: 2,
-    deletedFiles: 1,
-    manyDeletedFiles: 2
-  },
-  thresholds: {
-    lowMax: 3,
-    mediumMax: 6,
-    highMax: 8
-  },
-  patterns: {
-    config: [
-      ".github/workflows/**",
-      "Dockerfile",
-      "docker-compose.yml",
-      "*.yaml",
-      "*.yml",
-      "*.toml",
-      "*.ini",
-      "package.json",
-      "pnpm-lock.yaml",
-      "package-lock.json",
-      "yarn.lock",
-      "requirements.txt",
-      "pyproject.toml"
-    ],
-    tests: ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "tests/**", "test/**"],
-    migrations: ["**/migrations/**", "**/migration/**", "**/schema.sql", "**/schema.prisma", "**/db/**", "**/database/**"],
-    sensitive: [
-      "**/auth.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/authentication.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/authorization.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/middleware.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/security.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/permissions.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/roles.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/auth/**",
-      "**/authentication/**",
-      "**/authorization/**",
-      "**/middleware/**",
-      "**/security/**",
-      "**/permissions/**",
-      "**/roles/**",
-      "**/payment/**",
-      "**/billing/**",
-      "**/stripe/**",
-      "**/checkout/**",
-      "**/data/**",
-      "**/privacy/**",
-      "**/pii/**"
-    ],
-    auth: [
-      "**/auth.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/authentication.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/authorization.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/middleware.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/security.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/permissions.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/roles.{ts,tsx,js,jsx,mjs,cjs}",
-      "**/auth/**",
-      "**/authentication/**",
-      "**/authorization/**",
-      "**/middleware/**",
-      "**/security/**",
-      "**/permissions/**",
-      "**/roles/**"
-    ],
-    payments: ["**/payment/**", "**/billing/**", "**/stripe/**", "**/checkout/**"],
-    database: ["**/migrations/**", "**/migration/**", "**/schema.sql", "**/schema.prisma", "**/db/**", "**/database/**"],
-    devops: [".github/workflows/**", "Dockerfile", "docker-compose.yml", "deploy/**", "infra/**", "terraform/**"],
-    frontend: ["**/*.tsx", "**/*.jsx", "src/components/**", "app/**", "pages/**", "frontend/**", "web/**"],
-    generated: ["dist/**", "build/**", "generated/**", "**/*.generated.*", "**/*.min.{js,css}", "**/*.lock"]
-  },
-  reviewers: {
-    auth: ["backend/security"],
-    payments: ["payments"],
-    database: ["backend/database"],
-    devops: ["devops/platform"],
-    frontend: ["frontend"],
-    testOnly: ["standard-review"],
-    default: ["codeowners/default"]
-  },
-  mode: "heuristic",
-  llm: {
-    enabled: false,
-    provider: "openai",
-    model: void 0,
-    maxDiffChars: 6e3,
-    requireJson: true
-  }
-};
-function mergeConfig(partial) {
-  if (!partial) {
-    return defaultConfig;
-  }
-  return {
-    weights: { ...defaultConfig.weights, ...partial.weights },
-    thresholds: { ...defaultConfig.thresholds, ...partial.thresholds },
-    patterns: { ...defaultConfig.patterns, ...partial.patterns },
-    reviewers: { ...defaultConfig.reviewers, ...partial.reviewers },
-    mode: partial.mode ?? defaultConfig.mode,
-    llm: { ...defaultConfig.llm, ...partial.llm }
-  };
-}
-function riskLevelForScore(score, config = defaultConfig) {
-  if (score <= config.thresholds.lowMax) {
-    return "Low";
-  }
-  if (score <= config.thresholds.mediumMax) {
-    return "Medium";
-  }
-  if (score <= config.thresholds.highMax) {
-    return "High";
-  }
-  return "Critical";
-}
-function clampScore(score) {
-  return Math.max(1, Math.min(10, score));
-}
-
-// src/llm.ts
-var MAX_RETRIES = 2;
-var BASE_RETRY_DELAY_MS = 250;
-var RETRYABLE_STATUS_CODES = /* @__PURE__ */ new Set([429, 500, 502, 503, 504]);
-function unique(values) {
-  return Array.from(new Set(values.filter((value) => value.length > 0)));
-}
-function getProperty(value, key) {
-  if (typeof value !== "object" || value === null || !(key in value)) {
-    return void 0;
-  }
-  return Reflect.get(value, key);
-}
-function readStringArray(value) {
-  if (!Array.isArray(value)) {
-    return [];
-  }
-  return value.filter((item) => typeof item === "string");
-}
-function readRiskLevel(value) {
-  if (value === "Low" || value === "Medium" || value === "High" || value === "Critical") {
-    return value;
-  }
-  return void 0;
-}
-function parseScore(value) {
-  if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 10) {
-    throw new Error("LLM JSON response must include an integer score from 1 to 10.");
-  }
-  return value;
-}
-function normalizeBaseUrl(baseUrl2) {
-  return baseUrl2.endsWith("/") ? baseUrl2.slice(0, -1) : baseUrl2;
-}
-function buildRequestHeaders(apiKey, config, env) {
-  const headers = {
-    Authorization: `Bearer ${apiKey}`,
-    "Content-Type": "application/json"
-  };
-  const openRouterHeaders = env.OPENROUTER_HTTP_REFERER || env.OPENROUTER_REFERER;
-  const openRouterTitle = env.OPENROUTER_TITLE || env.OPENROUTER_SITE_NAME;
-  if (config.llm.provider === "openrouter" && (openRouterHeaders || openRouterTitle)) {
-    if (openRouterHeaders) {
-      headers["HTTP-Referer"] = openRouterHeaders;
-    }
-    if (openRouterTitle) {
-      headers["X-OpenRouter-Title"] = openRouterTitle;
-    }
-  }
-  return headers;
-}
-function resolveApiKey(env) {
-  const apiKey = [env.OPENAI_API_KEY, env.OPENROUTER_API_KEY].find((value) => value && value.length > 0);
-  if (!apiKey) {
-    throw new Error("LLM is enabled but no API key was found. Set OPENAI_API_KEY or OPENROUTER_API_KEY.");
-  }
-  return apiKey;
-}
-function resolveBaseUrl(config, env) {
-  const configured = config.llm.baseUrl ?? env.OPENAI_BASE_URL ?? env.OPENAI_API_BASE_URL ?? env.OPENROUTER_BASE_URL;
-  if (configured) {
-    return normalizeBaseUrl(configured);
-  }
-  return config.llm.provider === "openrouter" ? "https://openrouter.ai/api/v1" : "https://api.openai.com/v1";
-}
-function resolveModel(config, env) {
-  return env.LLM_MODEL ?? config.llm.model ?? "gpt-4o";
-}
-function changedFileSummary(file) {
-  const patch = file.patch ? `
-${file.patch}` : "";
-  return `File: ${file.filename}
-Status: ${file.status}
-Additions: ${file.additions}
-Deletions: ${file.deletions}${patch}`;
-}
-function buildDiffPrompt(files, maxDiffChars) {
-  const fullDiff = files.map(changedFileSummary).join("\n\n---\n\n");
-  return fullDiff.length > maxDiffChars ? `${fullDiff.slice(0, maxDiffChars)}
-
-[diff truncated]` : fullDiff;
-}
-function buildChatRequest(files, baseline, config, env) {
-  const maxDiffChars = config.llm.maxDiffChars ?? 6e3;
-  const model = resolveModel(config, env);
-  const baseRequest = {
-    model,
-    temperature: 0,
-    messages: [
-      {
-        role: "system",
-        content: "You assess pull request diff risk. Return only JSON with score, level, summary, reviewGuidance, recommendedLabels, and reviewerAreas."
-      },
-      {
-        role: "user",
-        content: `Heuristic score: ${baseline.score}/10 (${baseline.level}).
-Review guidance: ${baseline.reviewGuidance.join("; ")}
-
-Diff:
-${buildDiffPrompt(files, maxDiffChars)}`
-      }
-    ]
-  };
-  if (config.llm.requireJson ?? true) {
-    return {
-      ...baseRequest,
-      response_format: { type: "json_object" }
-    };
-  }
-  return baseRequest;
-}
-function parseAssessment(content, requireJson, fallbackScore) {
-  if (!requireJson) {
-    return {
-      score: fallbackScore,
-      reviewGuidance: [content],
-      recommendedLabels: [],
-      reviewerAreas: []
-    };
-  }
-  let parsed;
-  try {
-    parsed = JSON.parse(content);
-  } catch (error) {
-    if (error instanceof SyntaxError) {
-      throw new Error("LLM response was not valid JSON.");
-    }
-    throw error;
-  }
-  const score = parseScore(getProperty(parsed, "score"));
-  const level = readRiskLevel(getProperty(parsed, "level"));
-  const summary = getProperty(parsed, "summary");
-  const assessment = {
-    score,
-    reviewGuidance: readStringArray(getProperty(parsed, "reviewGuidance")),
-    recommendedLabels: readStringArray(getProperty(parsed, "recommendedLabels")),
-    reviewerAreas: readStringArray(getProperty(parsed, "reviewerAreas"))
-  };
-  return {
-    ...assessment,
-    ...level ? { level } : {},
-    ...typeof summary === "string" ? { summary } : {}
-  };
-}
-function sleep(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-function getRetryDelayMs(headers, attempt) {
-  if (!headers) {
-    return BASE_RETRY_DELAY_MS * 2 ** attempt;
-  }
-  const header = headers["retry-after"];
-  if (typeof header === "string") {
-    const value = Number.parseInt(header, 10);
-    if (!Number.isNaN(value) && value > 0) {
-      return value * 1e3;
-    }
-    const retryAt = Date.parse(header);
-    if (!Number.isNaN(retryAt)) {
-      const delay = retryAt - Date.now();
-      return delay > 0 ? delay : 0;
-    }
-  }
-  return BASE_RETRY_DELAY_MS * 2 ** attempt;
-}
-function normalizeHttpClientError(error) {
-  if (!(error instanceof import_http_client.HttpClientError)) {
-    return void 0;
-  }
-  if (typeof error.statusCode === "number" && Number.isFinite(error.statusCode) && error.statusCode > 0) {
-    return {
-      statusCode: error.statusCode,
-      body: JSON.stringify(error.result ?? error.message)
-    };
-  }
-  return {
-    body: JSON.stringify(error.result ?? error.message)
-  };
-}
-function isRetryableStatus(statusCode) {
-  if (typeof statusCode !== "number") {
-    return false;
-  }
-  return RETRYABLE_STATUS_CODES.has(statusCode);
-}
-function parseChatContent(body) {
-  const choices = getProperty(body, "choices");
-  if (!Array.isArray(choices)) {
-    throw new Error("LLM response did not include choices.");
-  }
-  const firstChoice = choices[0];
-  if (!firstChoice) {
-    throw new Error("LLM response did not include choices.");
-  }
-  const content = getProperty(getProperty(firstChoice, "message"), "content");
-  if (typeof content !== "string") {
-    throw new Error("LLM response did not include message content.");
-  }
-  return content;
-}
-function mergeAssessment(baseline, assessment, mode) {
-  const score = mode === "hybrid" ? Math.max(baseline.score, assessment.score) : assessment.score;
-  const level = score === assessment.score ? assessment.level ?? riskLevelForScore(score) : riskLevelForScore(score);
-  const summaryGuidance = assessment.summary ? [`LLM summary: ${assessment.summary}`] : [];
-  const driverPoints = Math.max(1, score - baseline.score);
-  return {
-    ...baseline,
-    score,
-    level,
-    overallScore: Math.max(score, baseline.slopScore),
-    recommendedLabels: unique([...baseline.recommendedLabels, ...assessment.recommendedLabels]),
-    reviewerAreas: unique([...baseline.reviewerAreas, ...assessment.reviewerAreas]),
-    reviewGuidance: unique([...summaryGuidance, ...assessment.reviewGuidance, ...baseline.reviewGuidance]),
-    drivers: [
-      ...baseline.drivers,
-      {
-        key: "llmAssessment",
-        label: "LLM diff assessment",
-        points: driverPoints
-      }
-    ]
-  };
-}
-async function analyzePullRequestWithLlm(files, baseline, config, mode, env = process.env) {
-  if (!config.llm.enabled || mode === "heuristic") {
-    return baseline;
-  }
-  const apiKey = resolveApiKey(env);
-  const baseUrl2 = resolveBaseUrl(config, env);
-  const payload = buildChatRequest(files, baseline, config, env);
-  const client = new import_http_client.HttpClient("pr-diff-risk-score");
-  try {
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
-      let response;
-      try {
-        response = await client.postJson(`${baseUrl2}/chat/completions`, payload, {
-          ...buildRequestHeaders(apiKey, config, env)
-        });
-      } catch (error) {
-        const errorContext = normalizeHttpClientError(error);
-        const statusCode = errorContext?.statusCode;
-        if (isRetryableStatus(statusCode) && attempt < MAX_RETRIES) {
-          const retryDelayMs = getRetryDelayMs(void 0, attempt);
-          core.warning(`LLM request failed with HTTP ${statusCode}; retrying in ${retryDelayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES}).`);
-          await sleep(retryDelayMs);
-          continue;
-        }
-        const message = errorContext?.body ?? String(error);
-        throw new Error(`LLM request failed with HTTP ${statusCode ?? "unknown"}: ${message}`);
-      }
-      if (response.statusCode < 200 || response.statusCode >= 300) {
-        if (isRetryableStatus(response.statusCode) && attempt < MAX_RETRIES) {
-          const retryDelayMs = getRetryDelayMs(response.headers, attempt);
-          core.warning(
-            `LLM request failed with HTTP ${response.statusCode}; retrying in ${retryDelayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES}).`
-          );
-          await sleep(retryDelayMs);
-          continue;
-        }
-        const responseBody = JSON.stringify(response.result ?? "");
-        throw new Error(`LLM request failed with HTTP ${response.statusCode}: ${responseBody}`);
-      }
-      const assessment = parseAssessment(parseChatContent(response.result), config.llm.requireJson ?? true, baseline.score);
-      return mergeAssessment(baseline, assessment, mode);
-    }
-    throw new Error(`LLM request failed after ${MAX_RETRIES + 1} attempts.`);
-  } catch (error) {
-    if (mode === "hybrid") {
-      const message = error instanceof Error ? error.message : String(error);
-      core.warning(`LLM analysis failed; using heuristic result. ${message}`);
-      return baseline;
-    }
-    throw error;
-  }
-}
+var import_promises = __toESM(require("node:fs/promises"));
+var import_node_path = __toESM(require("node:path"));
 
 // node_modules/balanced-match/dist/esm/index.js
 var balanced = (a, b, str) => {
@@ -30088,9 +29588,1082 @@ minimatch.Minimatch = Minimatch;
 minimatch.escape = escape;
 minimatch.unescape = unescape;
 
+// src/rules.ts
+var defaultConfig = {
+  weights: {
+    filesChanged5: 1,
+    filesChanged15: 2,
+    filesChanged30: 3,
+    linesChanged200: 1,
+    linesChanged700: 2,
+    linesChanged1500: 3,
+    configTouched: 2,
+    migrationTouched: 3,
+    noTestsChanged: 2,
+    sensitiveTouched: 3,
+    generatedTouched: 2,
+    deletedFiles: 1,
+    manyDeletedFiles: 2,
+    hotspotTouched: 2,
+    highChurnTouched: 2,
+    bugfixHotspotTouched: 2,
+    recentlyRevertedTouched: 3,
+    architectureMinorDrift: 1,
+    architectureModerateDrift: 2,
+    architectureMajorDrift: 3,
+    architectureCriticalDrift: 4
+  },
+  thresholds: {
+    lowMax: 3,
+    mediumMax: 6,
+    highMax: 8
+  },
+  patterns: {
+    config: [
+      ".github/workflows/**",
+      "Dockerfile",
+      "docker-compose.yml",
+      "*.yaml",
+      "*.yml",
+      "*.toml",
+      "*.ini",
+      "package.json",
+      "pnpm-lock.yaml",
+      "package-lock.json",
+      "yarn.lock",
+      "requirements.txt",
+      "pyproject.toml"
+    ],
+    tests: ["**/*.test.*", "**/*.spec.*", "**/__tests__/**", "tests/**", "test/**"],
+    migrations: ["**/migrations/**", "**/migration/**", "**/schema.sql", "**/schema.prisma", "**/db/**", "**/database/**"],
+    sensitive: [
+      "**/auth.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/authentication.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/authorization.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/middleware.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/security.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/permissions.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/roles.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/auth/**",
+      "**/authentication/**",
+      "**/authorization/**",
+      "**/middleware/**",
+      "**/security/**",
+      "**/permissions/**",
+      "**/roles/**",
+      "**/payment/**",
+      "**/billing/**",
+      "**/stripe/**",
+      "**/checkout/**",
+      "**/data/**",
+      "**/privacy/**",
+      "**/pii/**"
+    ],
+    auth: [
+      "**/auth.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/authentication.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/authorization.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/middleware.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/security.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/permissions.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/roles.{ts,tsx,js,jsx,mjs,cjs}",
+      "**/auth/**",
+      "**/authentication/**",
+      "**/authorization/**",
+      "**/middleware/**",
+      "**/security/**",
+      "**/permissions/**",
+      "**/roles/**"
+    ],
+    payments: ["**/payment/**", "**/billing/**", "**/stripe/**", "**/checkout/**"],
+    database: ["**/migrations/**", "**/migration/**", "**/schema.sql", "**/schema.prisma", "**/db/**", "**/database/**"],
+    devops: [".github/workflows/**", "Dockerfile", "docker-compose.yml", "deploy/**", "infra/**", "terraform/**"],
+    frontend: ["**/*.tsx", "**/*.jsx", "src/components/**", "app/**", "pages/**", "frontend/**", "web/**"],
+    generated: ["dist/**", "build/**", "generated/**", "**/*.generated.*", "**/*.min.{js,css}", "**/*.lock"]
+  },
+  reviewers: {
+    auth: ["backend/security"],
+    payments: ["payments"],
+    database: ["backend/database"],
+    devops: ["devops/platform"],
+    frontend: ["frontend"],
+    testOnly: ["standard-review"],
+    default: ["codeowners/default"]
+  },
+  mode: "heuristic",
+  llm: {
+    enabled: false,
+    provider: "openai",
+    model: void 0,
+    maxDiffChars: 6e3,
+    requireJson: true
+  },
+  history: {
+    enabled: true,
+    mode: "auto",
+    lookbackDays: 180,
+    recentCommitThreshold: 8,
+    churnThreshold: 500,
+    bugfixCommitThreshold: 2,
+    revertCommitThreshold: 1,
+    maxHotspotFilesShown: 5,
+    bugfixKeywords: ["fix", "bug", "regression", "revert", "hotfix", "incident"]
+  },
+  architecture: {
+    enabled: false,
+    mode: "off",
+    strict: false,
+    maxDocChars: 12e3,
+    maxDiffChars: 8e3,
+    includePrBody: true,
+    requireMappedDocs: false,
+    maxFindingsShown: 5,
+    context: {
+      docs: []
+    },
+    severityWeights: {
+      minor: 1,
+      moderate: 2,
+      major: 3,
+      critical: 4
+    }
+  }
+};
+function mergeConfig(partial) {
+  if (!partial) {
+    return defaultConfig;
+  }
+  return {
+    weights: { ...defaultConfig.weights, ...partial.weights },
+    thresholds: { ...defaultConfig.thresholds, ...partial.thresholds },
+    patterns: { ...defaultConfig.patterns, ...partial.patterns },
+    reviewers: { ...defaultConfig.reviewers, ...partial.reviewers },
+    mode: partial.mode ?? defaultConfig.mode,
+    llm: { ...defaultConfig.llm, ...partial.llm },
+    history: { ...defaultConfig.history, ...partial.history },
+    architecture: {
+      ...defaultConfig.architecture,
+      ...partial.architecture,
+      context: {
+        ...defaultConfig.architecture.context,
+        ...partial.architecture?.context
+      },
+      severityWeights: {
+        ...defaultConfig.architecture.severityWeights,
+        ...partial.architecture?.severityWeights
+      }
+    }
+  };
+}
+function sameStringArray(left, right) {
+  if (!left || left.length !== right.length) {
+    return false;
+  }
+  return left.every((value, index) => value === right[index]);
+}
+function pruneDefaultActionInputs(actionInputs) {
+  if (!actionInputs) {
+    return void 0;
+  }
+  const history = actionInputs.history && (actionInputs.history.mode !== defaultConfig.history.mode || actionInputs.history.lookbackDays !== defaultConfig.history.lookbackDays || !sameStringArray(actionInputs.history.bugfixKeywords, defaultConfig.history.bugfixKeywords)) ? actionInputs.history : void 0;
+  const architecture = actionInputs.architecture && (actionInputs.architecture.mode !== defaultConfig.architecture.mode || actionInputs.architecture.maxDocChars !== defaultConfig.architecture.maxDocChars) ? actionInputs.architecture : void 0;
+  return {
+    ...actionInputs,
+    ...history ? { history } : { history: void 0 },
+    ...architecture ? { architecture } : { architecture: void 0 }
+  };
+}
+function mergeConfigWithActionInputs(loadedConfig, actionInputs) {
+  const prunedInputs = pruneDefaultActionInputs(actionInputs);
+  return mergeConfig({
+    ...loadedConfig,
+    ...prunedInputs,
+    history: { ...loadedConfig?.history, ...prunedInputs?.history },
+    architecture: {
+      ...loadedConfig?.architecture,
+      ...prunedInputs?.architecture,
+      context: { ...loadedConfig?.architecture?.context, ...prunedInputs?.architecture?.context },
+      severityWeights: { ...loadedConfig?.architecture?.severityWeights, ...prunedInputs?.architecture?.severityWeights }
+    }
+  });
+}
+function riskLevelForScore(score, config = defaultConfig) {
+  if (score <= config.thresholds.lowMax) {
+    return "Low";
+  }
+  if (score <= config.thresholds.mediumMax) {
+    return "Medium";
+  }
+  if (score <= config.thresholds.highMax) {
+    return "High";
+  }
+  return "Critical";
+}
+function clampScore(score) {
+  return Math.max(1, Math.min(10, score));
+}
+
+// src/architecture.ts
+function unique(values) {
+  return Array.from(new Set(values.filter((value) => value.length > 0)));
+}
+function getProperty(value, key) {
+  if (typeof value !== "object" || value === null || !(key in value)) {
+    return void 0;
+  }
+  return Reflect.get(value, key);
+}
+function readStringArray(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item) => typeof item === "string");
+}
+function readSeverity(value) {
+  if (value === "minor" || value === "moderate" || value === "major" || value === "critical") {
+    return value;
+  }
+  return "minor";
+}
+function readIntegerScore(value, name) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 10) {
+    throw new Error(`Architecture LLM response must include integer ${name} from 1 to 10.`);
+  }
+  return value;
+}
+function matchesAny(filename, patterns) {
+  return patterns.some((pattern) => minimatch(filename, pattern, { dot: true, nocase: true, matchBase: true }));
+}
+function modeUnavailable(mode, reason, enabled = true) {
+  return {
+    enabled,
+    available: false,
+    mode,
+    skippedReason: reason,
+    docsEvaluated: [],
+    changedFilesEvaluated: [],
+    findings: []
+  };
+}
+function shouldThrow(config, judgeMode) {
+  return config.architecture.strict && config.architecture.mode === "llm" && judgeMode === "llm";
+}
+function normalizeBaseUrl(baseUrl2) {
+  return baseUrl2.endsWith("/") ? baseUrl2.slice(0, -1) : baseUrl2;
+}
+function resolveBaseUrl(config, env) {
+  const configured = config.llm.baseUrl ?? env.OPENAI_BASE_URL ?? env.OPENAI_API_BASE_URL ?? env.OPENROUTER_BASE_URL;
+  if (configured) {
+    return normalizeBaseUrl(configured);
+  }
+  return config.llm.provider === "openrouter" ? "https://openrouter.ai/api/v1" : "https://api.openai.com/v1";
+}
+function resolveModel(config, env) {
+  return env.LLM_MODEL ?? config.llm.model ?? "gpt-4o";
+}
+function resolveApiKey(env) {
+  return [env.OPENAI_API_KEY, env.OPENROUTER_API_KEY].find((value) => value && value.length > 0);
+}
+function requestHeaders(apiKey) {
+  return {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json"
+  };
+}
+function changedFileSummary(file) {
+  const patch = file.patch ? `
+${file.patch}` : "";
+  return `File: ${file.filename}
+Status: ${file.status}
+Additions: ${file.additions}
+Deletions: ${file.deletions}${patch}`;
+}
+function truncate(value, maxChars) {
+  return value.length > maxChars ? `${value.slice(0, maxChars)}
+
+[truncated]` : value;
+}
+async function readDoc(workspace, docPath) {
+  const absolutePath = import_node_path.default.join(workspace, docPath);
+  const extension = import_node_path.default.extname(docPath).toLowerCase();
+  if (extension !== ".md" && extension !== ".mdx" && extension !== ".markdown") {
+    return void 0;
+  }
+  try {
+    return await import_promises.default.readFile(absolutePath, "utf8");
+  } catch {
+    return void 0;
+  }
+}
+async function loadDocs(files, config, workspace) {
+  const docs = [];
+  for (const group of config.architecture.context.docs) {
+    const changedFiles = files.map((file) => file.filename).filter((filename) => matchesAny(filename, group.appliesTo));
+    if (changedFiles.length === 0) {
+      continue;
+    }
+    for (const docPath of group.paths) {
+      const content = await readDoc(workspace, docPath);
+      if (content) {
+        docs.push({ group, path: docPath, content, changedFiles });
+      }
+    }
+  }
+  return docs;
+}
+function buildArchitecturePrompt(files, docs, config) {
+  const docContext = docs.map((doc) => `Doc ${doc.group.id} (${doc.path}) applies to ${doc.changedFiles.join(", ")}
+${doc.content}`).join("\n\n---\n\n");
+  const diff = files.map(changedFileSummary).join("\n\n---\n\n");
+  return `Evaluate this PR only against the configured Markdown docs below. Do not invent architecture rules. Return JSON only.
+
+Architecture docs:
+${truncate(docContext, config.architecture.maxDocChars)}
+
+Diff:
+${truncate(diff, config.architecture.maxDiffChars)}`;
+}
+function buildChatRequest(files, docs, config, env) {
+  const baseRequest = {
+    model: resolveModel(config, env),
+    temperature: 0,
+    messages: [
+      {
+        role: "system",
+        content: "You assess architecture adherence for a pull request. Use only provided Markdown docs. Ignore style unless documented. Return JSON with adherenceScore, driftRiskScore, summary, findings, recommendedLabels, reviewGuidance, reviewerAreas."
+      },
+      {
+        role: "user",
+        content: buildArchitecturePrompt(files, docs, config)
+      }
+    ]
+  };
+  if (config.llm.requireJson ?? true) {
+    return { ...baseRequest, response_format: { type: "json_object" } };
+  }
+  return baseRequest;
+}
+function parseFinding(value) {
+  if (typeof value !== "object" || value === null) {
+    return void 0;
+  }
+  const title = getProperty(value, "title");
+  const evidence = getProperty(value, "evidence");
+  const recommendation = getProperty(value, "recommendation");
+  const docId = getProperty(value, "docId");
+  const docPath = getProperty(value, "docPath");
+  if (typeof title !== "string" || typeof evidence !== "string" || typeof recommendation !== "string" || typeof docId !== "string") {
+    return void 0;
+  }
+  return {
+    severity: readSeverity(getProperty(value, "severity")),
+    docId,
+    ...typeof docPath === "string" ? { docPath } : {},
+    changedFiles: readStringArray(getProperty(value, "changedFiles")),
+    title,
+    evidence,
+    recommendation
+  };
+}
+function parseAssessment(content, mode, docs) {
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error("Architecture LLM response was not valid JSON.");
+    }
+    throw error;
+  }
+  const findingsValue = getProperty(parsed, "findings");
+  const findings = Array.isArray(findingsValue) ? findingsValue.map(parseFinding).filter((finding) => Boolean(finding)) : [];
+  return {
+    enabled: true,
+    available: true,
+    mode,
+    docsEvaluated: unique(docs.map((doc) => doc.path)),
+    changedFilesEvaluated: unique(docs.flatMap((doc) => doc.changedFiles)),
+    adherenceScore: readIntegerScore(getProperty(parsed, "adherenceScore"), "adherenceScore"),
+    driftRiskScore: readIntegerScore(getProperty(parsed, "driftRiskScore"), "driftRiskScore"),
+    findings
+  };
+}
+async function callArchitectureLlm(files, docs, config, env) {
+  const apiKey = resolveApiKey(env);
+  if (!apiKey) {
+    throw new Error("Architecture scoring requires OPENAI_API_KEY or OPENROUTER_API_KEY.");
+  }
+  const client = new import_http_client.HttpClient("pr-diff-risk-score");
+  const response = await client.postJson(
+    `${resolveBaseUrl(config, env)}/chat/completions`,
+    buildChatRequest(files, docs, config, env),
+    requestHeaders(apiKey)
+  );
+  const content = getProperty(getProperty(getProperty(response.result, "choices")?.[0], "message"), "content");
+  if (typeof content !== "string") {
+    throw new Error("Architecture LLM response did not include message content.");
+  }
+  return parseAssessment(content, config.architecture.mode, docs);
+}
+async function assessArchitecture(files, config, workspace, env, judgeMode) {
+  if (!config.architecture.enabled || config.architecture.mode === "off") {
+    return modeUnavailable("off", "Architecture scoring is disabled.", false);
+  }
+  const docs = await loadDocs(files, config, workspace);
+  if (docs.length === 0) {
+    return modeUnavailable(config.architecture.mode, "No configured architecture docs matched changed files.");
+  }
+  try {
+    return await callArchitectureLlm(files, docs, config, env);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (shouldThrow(config, judgeMode)) {
+      throw error;
+    }
+    return modeUnavailable(config.architecture.mode, message);
+  }
+}
+function severityRank(severity) {
+  const ranks = {
+    minor: 1,
+    moderate: 2,
+    major: 3,
+    critical: 4
+  };
+  return ranks[severity];
+}
+function driverForSeverity(severity, config) {
+  const driverKeys = {
+    minor: "architectureMinorDrift",
+    moderate: "architectureModerateDrift",
+    major: "architectureMajorDrift",
+    critical: "architectureCriticalDrift"
+  };
+  const labels = {
+    minor: "Possible minor architecture drift",
+    moderate: "Possible moderate architecture drift",
+    major: "Possible major architecture drift",
+    critical: "Possible critical architecture drift"
+  };
+  return {
+    key: driverKeys[severity],
+    label: labels[severity],
+    points: config.architecture.severityWeights[severity]
+  };
+}
+function mergeArchitectureAssessment(baseline, assessment, config) {
+  if (!assessment.available || assessment.findings.length === 0) {
+    return { ...baseline, architecture: assessment };
+  }
+  const highestSeverity = assessment.findings.reduce((highest, finding) => severityRank(finding.severity) > severityRank(highest) ? finding.severity : highest, "minor");
+  const architectureDriver = driverForSeverity(highestSeverity, config);
+  const drivers = [...baseline.drivers, architectureDriver];
+  const score = clampScore(baseline.score + architectureDriver.points);
+  const level = riskLevelForScore(score, config);
+  const moderateOrHigher = severityRank(highestSeverity) >= severityRank("moderate");
+  const majorOrHigher = severityRank(highestSeverity) >= severityRank("major");
+  const critical = highestSeverity === "critical";
+  return {
+    ...baseline,
+    score,
+    level,
+    overallScore: Math.max(score, baseline.slopScore),
+    drivers,
+    recommendedLabels: unique([
+      ...baseline.recommendedLabels,
+      "architecture-review",
+      ...moderateOrHigher ? ["architecture-drift"] : [],
+      ...majorOrHigher ? ["needs-design-context"] : [],
+      ...critical ? ["review-carefully"] : []
+    ]),
+    reviewerAreas: unique([...baseline.reviewerAreas, "architecture"]),
+    reviewGuidance: unique([
+      ...baseline.reviewGuidance,
+      "Check whether the changed files still follow the documented service and dependency boundaries.",
+      "Ask the author to update the architecture docs or add an explicit architecture exception if the design intentionally changed.",
+      "Verify that Mermaid diagrams and architecture docs remain accurate after this PR."
+    ]),
+    architecture: assessment
+  };
+}
+
+// src/comment.ts
+var COMMENT_MARKER = "<!-- pr-diff-risk-score -->";
+function bulletList(items) {
+  return items.map((item) => `- ${item}`).join("\n");
+}
+function renderHistorySection(result) {
+  if (!result.history?.available || result.history.hotspotFiles.length === 0) {
+    return "";
+  }
+  const files = result.history.hotspotFiles.map((file) => {
+    const details = [`${file.recentCommits} recent commits`, `${file.recentChurn} recent churn`];
+    if (file.bugfixCommits > 0) {
+      details.push(`${file.bugfixCommits} bugfix-related commits`);
+    }
+    if (file.revertCommits > 0) {
+      details.push(`${file.revertCommits} revert-related commits`);
+    }
+    return `${file.filename}: ${details.join(", ")}`;
+  });
+  return `
+### Repository history signals
+${bulletList(files)}
+`;
+}
+function architectureDriftLabel(score) {
+  if (typeof score !== "number") {
+    return "Unknown";
+  }
+  if (score <= 3) {
+    return "Low";
+  }
+  if (score <= 6) {
+    return "Medium";
+  }
+  if (score <= 8) {
+    return "High";
+  }
+  return "Critical";
+}
+function renderArchitectureSection(result) {
+  if (!result.architecture?.available) {
+    return "";
+  }
+  const assessment = result.architecture;
+  const findings = assessment.findings.length > 0 ? bulletList(assessment.findings.map((finding) => `${finding.title}: ${finding.evidence} Recommendation: ${finding.recommendation}`)) : "No material architecture drift detected against configured docs.";
+  return `
+### Architecture adherence
+
+Adherence score: ${assessment.adherenceScore ?? 10}/10
+Architecture drift risk: ${architectureDriftLabel(assessment.driftRiskScore)}
+
+${assessment.findings.length > 0 ? `Findings:
+${findings}` : findings}
+`;
+}
+function renderRiskComment(result) {
+  const drivers = result.drivers.length > 0 ? result.drivers.map((driver) => `${driver.label} (+${driver.points})`) : ["No major risk drivers detected"];
+  const slopDrivers = result.slopDrivers.length > 0 ? result.slopDrivers.map((driver) => `${driver.label} (+${driver.points})`) : ["No major review-quality drivers detected"];
+  return `${COMMENT_MARKER}
+## PR Diff Risk Score
+
+**Risk score:** ${result.score}/10
+**Risk level:** ${result.level}
+**Review-quality score:** ${result.slopScore}/10
+**Overall score:** ${result.overallScore}/10
+
+### Main drivers
+${bulletList(drivers)}
+${renderHistorySection(result)}${renderArchitectureSection(result)}
+
+### Review-quality drivers
+${bulletList(slopDrivers)}
+
+### Recommended labels
+${bulletList(result.recommendedLabels)}
+
+### Suggested reviewer area
+${bulletList(result.reviewerAreas)}
+
+### Review guidance
+${bulletList(result.reviewGuidance)}
+
+_Scored ${result.stats.filesChanged} changed file(s) with ${result.stats.totalChanges} total addition/deletion line changes._`;
+}
+
+// src/github.ts
+function getPullRequestContext() {
+  const pullRequest = context2.payload.pull_request;
+  if (!pullRequest) {
+    throw new Error("This action must run on a pull_request event.");
+  }
+  return {
+    owner: context2.repo.owner,
+    repo: context2.repo.repo,
+    pullNumber: pullRequest.number
+  };
+}
+async function listChangedFiles(octokit, context3) {
+  const files = await octokit.paginate(octokit.rest.pulls.listFiles, {
+    owner: context3.owner,
+    repo: context3.repo,
+    pull_number: context3.pullNumber,
+    per_page: 100
+  });
+  return files.map((file) => ({
+    filename: file.filename,
+    status: file.status,
+    additions: file.additions,
+    deletions: file.deletions,
+    changes: file.changes,
+    patch: file.patch
+  }));
+}
+async function createRiskComment(octokit, context3, body) {
+  await octokit.rest.issues.createComment({
+    owner: context3.owner,
+    repo: context3.repo,
+    issue_number: context3.pullNumber,
+    body
+  });
+}
+async function updateRiskComment(octokit, context3, body) {
+  const comments = await octokit.paginate(octokit.rest.issues.listComments, {
+    owner: context3.owner,
+    repo: context3.repo,
+    issue_number: context3.pullNumber,
+    per_page: 100
+  });
+  const previous = comments.find((comment) => comment.user?.type === "Bot" && comment.body?.includes(COMMENT_MARKER));
+  if (!previous) {
+    await createRiskComment(octokit, context3, body);
+    return "created";
+  }
+  await octokit.rest.issues.updateComment({
+    owner: context3.owner,
+    repo: context3.repo,
+    comment_id: previous.id,
+    body
+  });
+  return "updated";
+}
+
+// src/history.ts
+var import_node_child_process = require("node:child_process");
+var import_node_util = require("node:util");
+var execFileAsync = (0, import_node_util.promisify)(import_node_child_process.execFile);
+function matchesAny2(path4, patterns) {
+  return patterns.some((pattern) => minimatch(path4, pattern, { dot: true, nocase: true, matchBase: true }));
+}
+function hasLowExtensionSignal(filename) {
+  const lastSegment = filename.split("/").pop() ?? filename;
+  return !lastSegment.includes(".") || /\.(txt|log|map|snap)$/i.test(lastSegment);
+}
+function looksGenerated(file, config) {
+  if (matchesAny2(file.filename, config.patterns.generated)) {
+    return true;
+  }
+  return file.additions >= 1e3 && hasLowExtensionSignal(file.filename);
+}
+async function git(workspace, args) {
+  const result = await execFileAsync("git", [...args], {
+    cwd: workspace,
+    maxBuffer: 10 * 1024 * 1024
+  });
+  return result.stdout;
+}
+async function hasGitHistory(workspace) {
+  try {
+    await git(workspace, ["rev-parse", "--is-inside-work-tree"]);
+    await git(workspace, ["rev-parse", "HEAD"]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function countKeywordMatches(subjects, keywords) {
+  const normalizedKeywords = keywords.map((keyword) => keyword.toLowerCase()).filter((keyword) => keyword.length > 0);
+  return subjects.filter((subject) => {
+    const lowerSubject = subject.toLowerCase();
+    return normalizedKeywords.some((keyword) => lowerSubject.includes(keyword));
+  }).length;
+}
+function countReverts(subjects) {
+  return subjects.filter((subject) => subject.toLowerCase().includes("revert")).length;
+}
+function parseHistory(filename, output, config) {
+  const subjects = [];
+  let recentChurn = 0;
+  let lastTouchedSeconds;
+  for (const line of output.split("\n")) {
+    if (!line.trim()) {
+      continue;
+    }
+    const commit = line.match(/^[0-9a-f]{40}\t(\d+)\t(.+)$/);
+    if (commit) {
+      const timestamp = Number(commit[1]);
+      if (Number.isFinite(timestamp)) {
+        lastTouchedSeconds = Math.max(lastTouchedSeconds ?? 0, timestamp);
+      }
+      subjects.push(commit[2] ?? "");
+      continue;
+    }
+    const numstat = line.split("	");
+    const additions = Number(numstat[0]);
+    const deletions = Number(numstat[1]);
+    if (Number.isFinite(additions) && Number.isFinite(deletions)) {
+      recentChurn += additions + deletions;
+    }
+  }
+  if (subjects.length === 0) {
+    return void 0;
+  }
+  const bugfixCommits = countKeywordMatches(subjects, config.history.bugfixKeywords);
+  const revertCommits = countReverts(subjects);
+  const reasons = [];
+  if (subjects.length >= config.history.recentCommitThreshold) {
+    reasons.push("hotspot");
+  }
+  if (recentChurn >= config.history.churnThreshold) {
+    reasons.push("high-churn");
+  }
+  if (bugfixCommits >= config.history.bugfixCommitThreshold) {
+    reasons.push("bugfix-history");
+  }
+  if (revertCommits >= config.history.revertCommitThreshold) {
+    reasons.push("recent-revert");
+  }
+  if (reasons.length === 0) {
+    return void 0;
+  }
+  const lastTouchedDaysAgo = typeof lastTouchedSeconds === "number" ? Math.max(0, Math.floor((Date.now() / 1e3 - lastTouchedSeconds) / 86400)) : void 0;
+  return {
+    filename,
+    recentCommits: subjects.length,
+    recentChurn,
+    bugfixCommits,
+    revertCommits,
+    ...typeof lastTouchedDaysAgo === "number" ? { lastTouchedDaysAgo } : {},
+    reasons
+  };
+}
+async function collectHistorySignals(files, config, workspace) {
+  if (!config.history.enabled || config.history.mode === "off") {
+    return {
+      enabled: false,
+      available: false,
+      mode: "off",
+      lookbackDays: config.history.lookbackDays,
+      skippedReason: "History scoring is disabled.",
+      hotspotFiles: []
+    };
+  }
+  if (!await hasGitHistory(workspace)) {
+    return {
+      enabled: true,
+      available: false,
+      mode: config.history.mode,
+      lookbackDays: config.history.lookbackDays,
+      skippedReason: "Git history is not available in the current workspace.",
+      hotspotFiles: []
+    };
+  }
+  const since = `${config.history.lookbackDays} days ago`;
+  const hotspotFiles = [];
+  const candidates = files.filter((file) => !looksGenerated(file, config));
+  for (const file of candidates) {
+    try {
+      const output = await git(workspace, ["log", `--since=${since}`, "--format=%H%x09%ct%x09%s", "--numstat", "--", file.filename]);
+      const signal = parseHistory(file.filename, output, config);
+      if (signal) {
+        hotspotFiles.push(signal);
+      }
+    } catch {
+      if (config.history.mode === "local-git") {
+        return {
+          enabled: true,
+          available: false,
+          mode: config.history.mode,
+          lookbackDays: config.history.lookbackDays,
+          skippedReason: `Git history could not be read for ${file.filename}.`,
+          hotspotFiles: []
+        };
+      }
+    }
+  }
+  return {
+    enabled: true,
+    available: true,
+    mode: config.history.mode,
+    lookbackDays: config.history.lookbackDays,
+    hotspotFiles: hotspotFiles.slice(0, config.history.maxHotspotFilesShown)
+  };
+}
+
+// src/llm.ts
+var core = __toESM(require_core());
+var import_http_client2 = __toESM(require_lib());
+var MAX_RETRIES = 2;
+var BASE_RETRY_DELAY_MS = 250;
+var RETRYABLE_STATUS_CODES = /* @__PURE__ */ new Set([429, 500, 502, 503, 504]);
+function unique2(values) {
+  return Array.from(new Set(values.filter((value) => value.length > 0)));
+}
+function getProperty2(value, key) {
+  if (typeof value !== "object" || value === null || !(key in value)) {
+    return void 0;
+  }
+  return Reflect.get(value, key);
+}
+function readStringArray2(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item) => typeof item === "string");
+}
+function readRiskLevel(value) {
+  if (value === "Low" || value === "Medium" || value === "High" || value === "Critical") {
+    return value;
+  }
+  return void 0;
+}
+function parseScore(value) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 10) {
+    throw new Error("LLM JSON response must include an integer score from 1 to 10.");
+  }
+  return value;
+}
+function normalizeBaseUrl2(baseUrl2) {
+  return baseUrl2.endsWith("/") ? baseUrl2.slice(0, -1) : baseUrl2;
+}
+function buildRequestHeaders(apiKey, config, env) {
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json"
+  };
+  const openRouterHeaders = env.OPENROUTER_HTTP_REFERER || env.OPENROUTER_REFERER;
+  const openRouterTitle = env.OPENROUTER_TITLE || env.OPENROUTER_SITE_NAME;
+  if (config.llm.provider === "openrouter" && (openRouterHeaders || openRouterTitle)) {
+    if (openRouterHeaders) {
+      headers["HTTP-Referer"] = openRouterHeaders;
+    }
+    if (openRouterTitle) {
+      headers["X-OpenRouter-Title"] = openRouterTitle;
+    }
+  }
+  return headers;
+}
+function resolveApiKey2(env) {
+  const apiKey = [env.OPENAI_API_KEY, env.OPENROUTER_API_KEY].find((value) => value && value.length > 0);
+  if (!apiKey) {
+    throw new Error("LLM is enabled but no API key was found. Set OPENAI_API_KEY or OPENROUTER_API_KEY.");
+  }
+  return apiKey;
+}
+function resolveBaseUrl2(config, env) {
+  const configured = config.llm.baseUrl ?? env.OPENAI_BASE_URL ?? env.OPENAI_API_BASE_URL ?? env.OPENROUTER_BASE_URL;
+  if (configured) {
+    return normalizeBaseUrl2(configured);
+  }
+  return config.llm.provider === "openrouter" ? "https://openrouter.ai/api/v1" : "https://api.openai.com/v1";
+}
+function resolveModel2(config, env) {
+  return env.LLM_MODEL ?? config.llm.model ?? "gpt-4o";
+}
+function changedFileSummary2(file) {
+  const patch = file.patch ? `
+${file.patch}` : "";
+  return `File: ${file.filename}
+Status: ${file.status}
+Additions: ${file.additions}
+Deletions: ${file.deletions}${patch}`;
+}
+function buildDiffPrompt(files, maxDiffChars) {
+  const fullDiff = files.map(changedFileSummary2).join("\n\n---\n\n");
+  return fullDiff.length > maxDiffChars ? `${fullDiff.slice(0, maxDiffChars)}
+
+[diff truncated]` : fullDiff;
+}
+function buildChatRequest2(files, baseline, config, env) {
+  const maxDiffChars = config.llm.maxDiffChars ?? 6e3;
+  const model = resolveModel2(config, env);
+  const baseRequest = {
+    model,
+    temperature: 0,
+    messages: [
+      {
+        role: "system",
+        content: "You assess pull request diff risk. Return only JSON with score, level, summary, reviewGuidance, recommendedLabels, and reviewerAreas."
+      },
+      {
+        role: "user",
+        content: `Heuristic score: ${baseline.score}/10 (${baseline.level}).
+Review guidance: ${baseline.reviewGuidance.join("; ")}
+
+Diff:
+${buildDiffPrompt(files, maxDiffChars)}`
+      }
+    ]
+  };
+  if (config.llm.requireJson ?? true) {
+    return {
+      ...baseRequest,
+      response_format: { type: "json_object" }
+    };
+  }
+  return baseRequest;
+}
+function parseAssessment2(content, requireJson, fallbackScore) {
+  if (!requireJson) {
+    return {
+      score: fallbackScore,
+      reviewGuidance: [content],
+      recommendedLabels: [],
+      reviewerAreas: []
+    };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error("LLM response was not valid JSON.");
+    }
+    throw error;
+  }
+  const score = parseScore(getProperty2(parsed, "score"));
+  const level = readRiskLevel(getProperty2(parsed, "level"));
+  const summary = getProperty2(parsed, "summary");
+  const assessment = {
+    score,
+    reviewGuidance: readStringArray2(getProperty2(parsed, "reviewGuidance")),
+    recommendedLabels: readStringArray2(getProperty2(parsed, "recommendedLabels")),
+    reviewerAreas: readStringArray2(getProperty2(parsed, "reviewerAreas"))
+  };
+  return {
+    ...assessment,
+    ...level ? { level } : {},
+    ...typeof summary === "string" ? { summary } : {}
+  };
+}
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+function getRetryDelayMs(headers, attempt) {
+  if (!headers) {
+    return BASE_RETRY_DELAY_MS * 2 ** attempt;
+  }
+  const header = headers["retry-after"];
+  if (typeof header === "string") {
+    const value = Number.parseInt(header, 10);
+    if (!Number.isNaN(value) && value > 0) {
+      return value * 1e3;
+    }
+    const retryAt = Date.parse(header);
+    if (!Number.isNaN(retryAt)) {
+      const delay = retryAt - Date.now();
+      return delay > 0 ? delay : 0;
+    }
+  }
+  return BASE_RETRY_DELAY_MS * 2 ** attempt;
+}
+function normalizeHttpClientError(error) {
+  if (!(error instanceof import_http_client2.HttpClientError)) {
+    return void 0;
+  }
+  if (typeof error.statusCode === "number" && Number.isFinite(error.statusCode) && error.statusCode > 0) {
+    return {
+      statusCode: error.statusCode,
+      body: JSON.stringify(error.result ?? error.message)
+    };
+  }
+  return {
+    body: JSON.stringify(error.result ?? error.message)
+  };
+}
+function isRetryableStatus(statusCode) {
+  if (typeof statusCode !== "number") {
+    return false;
+  }
+  return RETRYABLE_STATUS_CODES.has(statusCode);
+}
+function parseChatContent(body) {
+  const choices = getProperty2(body, "choices");
+  if (!Array.isArray(choices)) {
+    throw new Error("LLM response did not include choices.");
+  }
+  const firstChoice = choices[0];
+  if (!firstChoice) {
+    throw new Error("LLM response did not include choices.");
+  }
+  const content = getProperty2(getProperty2(firstChoice, "message"), "content");
+  if (typeof content !== "string") {
+    throw new Error("LLM response did not include message content.");
+  }
+  return content;
+}
+function mergeAssessment(baseline, assessment, mode) {
+  const score = mode === "hybrid" ? Math.max(baseline.score, assessment.score) : assessment.score;
+  const level = score === assessment.score ? assessment.level ?? riskLevelForScore(score) : riskLevelForScore(score);
+  const summaryGuidance = assessment.summary ? [`LLM summary: ${assessment.summary}`] : [];
+  const driverPoints = Math.max(1, score - baseline.score);
+  return {
+    ...baseline,
+    score,
+    level,
+    overallScore: Math.max(score, baseline.slopScore),
+    recommendedLabels: unique2([...baseline.recommendedLabels, ...assessment.recommendedLabels]),
+    reviewerAreas: unique2([...baseline.reviewerAreas, ...assessment.reviewerAreas]),
+    reviewGuidance: unique2([...summaryGuidance, ...assessment.reviewGuidance, ...baseline.reviewGuidance]),
+    drivers: [
+      ...baseline.drivers,
+      {
+        key: "llmAssessment",
+        label: "LLM diff assessment",
+        points: driverPoints
+      }
+    ]
+  };
+}
+async function analyzePullRequestWithLlm(files, baseline, config, mode, env = process.env) {
+  if (!config.llm.enabled || mode === "heuristic") {
+    return baseline;
+  }
+  const apiKey = resolveApiKey2(env);
+  const baseUrl2 = resolveBaseUrl2(config, env);
+  const payload = buildChatRequest2(files, baseline, config, env);
+  const client = new import_http_client2.HttpClient("pr-diff-risk-score");
+  try {
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      let response;
+      try {
+        response = await client.postJson(`${baseUrl2}/chat/completions`, payload, {
+          ...buildRequestHeaders(apiKey, config, env)
+        });
+      } catch (error) {
+        const errorContext = normalizeHttpClientError(error);
+        const statusCode = errorContext?.statusCode;
+        if (isRetryableStatus(statusCode) && attempt < MAX_RETRIES) {
+          const retryDelayMs = getRetryDelayMs(void 0, attempt);
+          core.warning(`LLM request failed with HTTP ${statusCode}; retrying in ${retryDelayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES}).`);
+          await sleep(retryDelayMs);
+          continue;
+        }
+        const message = errorContext?.body ?? String(error);
+        throw new Error(`LLM request failed with HTTP ${statusCode ?? "unknown"}: ${message}`);
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (isRetryableStatus(response.statusCode) && attempt < MAX_RETRIES) {
+          const retryDelayMs = getRetryDelayMs(response.headers, attempt);
+          core.warning(
+            `LLM request failed with HTTP ${response.statusCode}; retrying in ${retryDelayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES}).`
+          );
+          await sleep(retryDelayMs);
+          continue;
+        }
+        const responseBody = JSON.stringify(response.result ?? "");
+        throw new Error(`LLM request failed with HTTP ${response.statusCode}: ${responseBody}`);
+      }
+      const assessment = parseAssessment2(parseChatContent(response.result), config.llm.requireJson ?? true, baseline.score);
+      return mergeAssessment(baseline, assessment, mode);
+    }
+    throw new Error(`LLM request failed after ${MAX_RETRIES + 1} attempts.`);
+  } catch (error) {
+    if (mode === "hybrid") {
+      const message = error instanceof Error ? error.message : String(error);
+      core.warning(`LLM analysis failed; using heuristic result. ${message}`);
+      return baseline;
+    }
+    throw error;
+  }
+}
+
 // src/riskScorer.ts
-function matchesAny(path3, patterns) {
-  return patterns.some((pattern) => minimatch(path3, pattern, { dot: true, nocase: true, matchBase: true }));
+function matchesAny3(path4, patterns) {
+  return patterns.some((pattern) => minimatch(path4, pattern, { dot: true, nocase: true, matchBase: true }));
 }
 function addDriver(drivers, key, label, points) {
   if (points > 0) {
@@ -30114,17 +30687,17 @@ function deletedFilePoints(count, config) {
   if (count > 0) return config.weights.deletedFiles;
   return 0;
 }
-function hasLowExtensionSignal(filename) {
+function hasLowExtensionSignal2(filename) {
   const lastSegment = filename.split("/").pop() ?? filename;
   return !lastSegment.includes(".") || /\.(txt|log|map|snap)$/i.test(lastSegment);
 }
-function looksGenerated(file, config) {
-  if (matchesAny(file.filename, config.patterns.generated)) {
+function looksGenerated2(file, config) {
+  if (matchesAny3(file.filename, config.patterns.generated)) {
     return true;
   }
-  return file.additions >= 1e3 && hasLowExtensionSignal(file.filename);
+  return file.additions >= 1e3 && hasLowExtensionSignal2(file.filename);
 }
-function unique2(values) {
+function unique3(values) {
   return Array.from(new Set(values));
 }
 function baseScoreFromDrivers(drivers) {
@@ -30154,6 +30727,15 @@ function buildReviewGuidance(drivers, reviewerAreas) {
   if (keys.has("filesChanged") || keys.has("linesChanged")) {
     guidance.push("Review broad changes by subsystem and prioritize the highest-impact paths.");
   }
+  if (keys.has("hotspotTouched") || keys.has("highChurnTouched")) {
+    guidance.push("Review recent changes to hotspot files before approving.");
+  }
+  if (keys.has("bugfixHotspotTouched") || keys.has("recentlyRevertedTouched")) {
+    guidance.push("Confirm regression coverage for files with recent bugfix or revert history.");
+  }
+  if (keys.has("hotspotTouched") || keys.has("highChurnTouched") || keys.has("bugfixHotspotTouched") || keys.has("recentlyRevertedTouched")) {
+    guidance.push("Ask for owner context if the PR changes a historically volatile subsystem.");
+  }
   if (guidance.length === 0) {
     guidance.push(`Standard review by ${reviewerAreas.join(", ")} should be sufficient.`);
   }
@@ -30165,39 +30747,48 @@ function buildRecommendedLabels(level, filesChanged, totalChanges, deletedFiles,
   if (keys.has("noTestsChanged")) {
     labels.push("needs-tests");
   }
+  if (keys.has("hotspotTouched") || keys.has("highChurnTouched") || keys.has("bugfixHotspotTouched")) {
+    labels.push("risk:hotspot");
+  }
+  if (keys.has("bugfixHotspotTouched") || keys.has("recentlyRevertedTouched")) {
+    labels.push("needs-regression-test");
+  }
+  if (keys.has("hotspotTouched") || keys.has("highChurnTouched") || keys.has("bugfixHotspotTouched") || keys.has("recentlyRevertedTouched")) {
+    labels.push("needs-owner-context");
+  }
   if (keys.has("migrationTouched") || keys.has("sensitiveTouched") || keys.has("configTouched") || filesChanged >= 15 || totalChanges >= 700 || deletedFiles >= 5) {
     labels.push("needs-context");
   }
   if (level === "High" || level === "Critical") {
     labels.push("review-carefully");
   }
-  return unique2(labels);
+  return unique3(labels);
 }
 function reviewerAreasForFiles(files, config, testsChanged) {
   const paths = files.map((file) => file.filename);
   const areas = [];
-  const nonTestFiles = paths.filter((path3) => !matchesAny(path3, config.patterns.tests));
-  if (paths.some((path3) => matchesAny(path3, config.patterns.auth))) {
+  const nonTestFiles = paths.filter((path4) => !matchesAny3(path4, config.patterns.tests));
+  if (paths.some((path4) => matchesAny3(path4, config.patterns.auth))) {
     areas.push(...config.reviewers.auth);
   }
-  if (paths.some((path3) => matchesAny(path3, config.patterns.payments))) {
+  if (paths.some((path4) => matchesAny3(path4, config.patterns.payments))) {
     areas.push(...config.reviewers.payments);
   }
-  if (paths.some((path3) => matchesAny(path3, config.patterns.database))) {
+  if (paths.some((path4) => matchesAny3(path4, config.patterns.database))) {
     areas.push(...config.reviewers.database);
   }
-  if (paths.some((path3) => matchesAny(path3, config.patterns.devops))) {
+  if (paths.some((path4) => matchesAny3(path4, config.patterns.devops))) {
     areas.push(...config.reviewers.devops);
   }
-  if (paths.some((path3) => matchesAny(path3, config.patterns.frontend))) {
+  if (paths.some((path4) => matchesAny3(path4, config.patterns.frontend))) {
     areas.push(...config.reviewers.frontend);
   }
   if (testsChanged && nonTestFiles.length === 0) {
     areas.push(...config.reviewers.testOnly);
   }
-  return unique2(areas.length > 0 ? areas : config.reviewers.default);
+  return unique3(areas.length > 0 ? areas : config.reviewers.default);
 }
-function buildDrivers(files, config, testsChanged, deletedFiles, includeReviewerSignals) {
+function buildDrivers(files, config, testsChanged, deletedFiles, includeReviewerSignals, history) {
   const drivers = [];
   const totalChanges = files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
   addDriver(drivers, "filesChanged", `${files.length} files changed`, fileCountPoints(files.length, config));
@@ -30205,7 +30796,7 @@ function buildDrivers(files, config, testsChanged, deletedFiles, includeReviewer
   if (!testsChanged) {
     addDriver(drivers, "noTestsChanged", "No tests changed", config.weights.noTestsChanged);
   }
-  if (files.some((file) => looksGenerated(file, config))) {
+  if (files.some((file) => looksGenerated2(file, config))) {
     addDriver(drivers, "generatedTouched", "Generated-looking or bundled files changed", includeReviewerSignals ? config.weights.generatedTouched : Math.floor(config.weights.generatedTouched / 2));
   }
   if (deletedFiles > 0) {
@@ -30213,24 +30804,38 @@ function buildDrivers(files, config, testsChanged, deletedFiles, includeReviewer
     addDriver(drivers, deletedFiles >= 5 ? "manyDeletedFiles" : "deletedFiles", `${deletedFiles} files deleted`, deletedPointValue);
   }
   if (includeReviewerSignals) {
-    if (files.some((file) => matchesAny(file.filename, config.patterns.config))) {
+    if (files.some((file) => matchesAny3(file.filename, config.patterns.config))) {
       addDriver(drivers, "configTouched", "Configuration or dependency file changed", config.weights.configTouched);
     }
-    if (files.some((file) => matchesAny(file.filename, config.patterns.migrations))) {
+    if (files.some((file) => matchesAny3(file.filename, config.patterns.migrations))) {
       addDriver(drivers, "migrationTouched", "Database or migration file changed", config.weights.migrationTouched);
     }
-    if (files.some((file) => matchesAny(file.filename, config.patterns.sensitive))) {
+    if (files.some((file) => matchesAny3(file.filename, config.patterns.sensitive))) {
       addDriver(drivers, "sensitiveTouched", "Sensitive auth, payment, privacy, or data area touched", config.weights.sensitiveTouched);
+    }
+    if (history?.available) {
+      if (history.hotspotFiles.some((file) => file.recentCommits >= config.history.recentCommitThreshold)) {
+        addDriver(drivers, "hotspotTouched", "Hotspot file touched", config.weights.hotspotTouched);
+      }
+      if (history.hotspotFiles.some((file) => file.recentChurn >= config.history.churnThreshold)) {
+        addDriver(drivers, "highChurnTouched", "High-churn file touched", config.weights.highChurnTouched);
+      }
+      if (history.hotspotFiles.some((file) => file.bugfixCommits >= config.history.bugfixCommitThreshold)) {
+        addDriver(drivers, "bugfixHotspotTouched", "File with recent bugfix history touched", config.weights.bugfixHotspotTouched);
+      }
+      if (history.hotspotFiles.some((file) => file.revertCommits >= config.history.revertCommitThreshold)) {
+        addDriver(drivers, "recentlyRevertedTouched", "File with recent revert history touched", config.weights.recentlyRevertedTouched);
+      }
     }
   }
   return drivers;
 }
-function scorePullRequest(files, config = defaultConfig) {
+function scorePullRequest(files, config = defaultConfig, context3 = {}) {
   const totalChanges = files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
   const deletedFiles = files.filter((file) => file.status === "removed").length;
-  const testsChanged = files.some((file) => matchesAny(file.filename, config.patterns.tests));
-  const drivers = buildDrivers(files, config, testsChanged, deletedFiles, true);
-  const reviewQualityDrivers = buildDrivers(files, config, testsChanged, deletedFiles, false);
+  const testsChanged = files.some((file) => matchesAny3(file.filename, config.patterns.tests));
+  const drivers = buildDrivers(files, config, testsChanged, deletedFiles, true, context3.history);
+  const reviewQualityDrivers = buildDrivers(files, config, testsChanged, deletedFiles, false, context3.history);
   const score = clampScore(1 + baseScoreFromDrivers(drivers));
   const slopScore = clampScore(1 + baseScoreFromDrivers(reviewQualityDrivers));
   const reviewerAreas = reviewerAreasForFiles(files, config, testsChanged);
@@ -30251,7 +30856,8 @@ function scorePullRequest(files, config = defaultConfig) {
       totalChanges,
       deletedFiles,
       testsChanged
-    }
+    },
+    ...context3.history ? { history: context3.history } : {}
   };
 }
 
@@ -30278,7 +30884,9 @@ function serializeRiskResult(result) {
     recommendedLabels: result.recommendedLabels,
     reviewerAreas: result.reviewerAreas,
     reviewGuidance: result.reviewGuidance,
-    stats: orderedStats
+    stats: orderedStats,
+    ...result.history ? { history: result.history } : {},
+    ...result.architecture ? { architecture: result.architecture } : {}
   };
   return JSON.stringify(orderedResult);
 }
@@ -30317,9 +30925,31 @@ function parseCommentMode(value) {
   }
   throw new Error("comment-mode must be one of: update, new, off.");
 }
+function parseHistoryMode(value) {
+  if (value === "off" || value === "auto" || value === "local-git") {
+    return value;
+  }
+  throw new Error("history-mode must be one of: off, auto, local-git.");
+}
+function parseArchitectureMode(value) {
+  if (value === "off" || value === "auto" || value === "llm") {
+    return value;
+  }
+  throw new Error("architecture-mode must be one of: off, auto, llm.");
+}
+function parsePositiveInteger(value, inputName) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${inputName} must be a positive integer.`);
+  }
+  return parsed;
+}
+function parseCsv(value) {
+  return value.split(",").map((item) => item.trim()).filter((item) => item.length > 0);
+}
 function loadConfig(configPath) {
   const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
-  const absolutePath = import_node_path.default.isAbsolute(configPath) ? configPath : import_node_path.default.join(workspace, configPath);
+  const absolutePath = import_node_path2.default.isAbsolute(configPath) ? configPath : import_node_path2.default.join(workspace, configPath);
   if (!import_node_fs.default.existsSync(absolutePath)) {
     core3.info(`No config file found at ${configPath}; using defaults.`);
     return void 0;
@@ -30329,6 +30959,24 @@ function loadConfig(configPath) {
     return void 0;
   }
   return loaded;
+}
+function inputConfig() {
+  const historyModeInput = core3.getInput("history-mode");
+  const historyDaysInput = core3.getInput("history-days");
+  const bugfixKeywordsInput = core3.getInput("bugfix-keywords");
+  const architectureModeInput = core3.getInput("architecture-mode");
+  const architectureMaxDocCharsInput = core3.getInput("architecture-max-doc-chars");
+  return {
+    history: {
+      ...historyModeInput ? { mode: parseHistoryMode(historyModeInput), enabled: parseHistoryMode(historyModeInput) !== "off" } : {},
+      ...historyDaysInput ? { lookbackDays: parsePositiveInteger(historyDaysInput, "history-days") } : {},
+      ...bugfixKeywordsInput ? { bugfixKeywords: parseCsv(bugfixKeywordsInput) } : {}
+    },
+    architecture: {
+      ...architectureModeInput ? { mode: parseArchitectureMode(architectureModeInput), enabled: parseArchitectureMode(architectureModeInput) !== "off" } : {},
+      ...architectureMaxDocCharsInput ? { maxDocChars: parsePositiveInteger(architectureMaxDocCharsInput, "architecture-max-doc-chars") } : {}
+    }
+  };
 }
 async function run() {
   const token = core3.getInput("github-token", { required: true });
@@ -30340,12 +30988,23 @@ async function run() {
   const octokit = getOctokit(token);
   const prContext = getPullRequestContext();
   const loadedConfig = loadConfig(configPath);
-  const config = mergeConfig(loadedConfig);
+  const actionInputConfig = inputConfig();
+  const config = mergeConfigWithActionInputs(loadedConfig, actionInputConfig);
   const env = llmModelOverride ? { ...process.env, LLM_MODEL: llmModelOverride } : process.env;
   const judgeMode = resolveJudgeMode(judgeModeInput, config.mode, config);
   const files = await listChangedFiles(octokit, prContext);
-  const heuristicResult = scorePullRequest(files, config);
-  const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode, env);
+  const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
+  const history = await collectHistorySignals(files, config, workspace);
+  if (history.skippedReason) {
+    core3.warning(history.skippedReason);
+  }
+  const heuristicResult = scorePullRequest(files, config, { history });
+  const architecture = await assessArchitecture(files, config, workspace, env, judgeMode);
+  if (architecture.skippedReason) {
+    core3.warning(architecture.skippedReason);
+  }
+  const contextualResult = mergeArchitectureAssessment(heuristicResult, architecture, config);
+  const result = await analyzePullRequestWithLlm(files, contextualResult, config, judgeMode, env);
   const comment = renderRiskComment(result);
   core3.info(`Using judge mode: ${judgeMode}.`);
   core3.setOutput("risk-score", String(result.score));

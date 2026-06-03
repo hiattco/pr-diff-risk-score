@@ -59,6 +59,26 @@ function normalizeBaseUrl(baseUrl: string): string {
   return baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
 }
 
+function buildRequestHeaders(apiKey: string, config: RiskConfig, env: Env): Record<string, string> {
+  const headers: Record<string, string> = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json"
+  };
+
+  const openRouterHeaders = env.OPENROUTER_HTTP_REFERER || env.OPENROUTER_REFERER;
+  const openRouterTitle = env.OPENROUTER_TITLE || env.OPENROUTER_SITE_NAME;
+  if (config.llm.provider === "openrouter" && (openRouterHeaders || openRouterTitle)) {
+    if (openRouterHeaders) {
+      headers["HTTP-Referer"] = openRouterHeaders;
+    }
+    if (openRouterTitle) {
+      headers["X-OpenRouter-Title"] = openRouterTitle;
+    }
+  }
+
+  return headers;
+}
+
 function resolveApiKey(env: Env): string {
   const apiKey = [env.OPENAI_API_KEY, env.OPENROUTER_API_KEY].find((value) => value && value.length > 0);
   if (!apiKey) {
@@ -265,8 +285,7 @@ export async function analyzePullRequestWithLlm(
       let response;
       try {
         response = await client.postJson<unknown>(`${baseUrl}/chat/completions`, payload, {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
+          ...buildRequestHeaders(apiKey, config, env)
         });
       } catch (error) {
         const errorContext = normalizeHttpClientError(error);

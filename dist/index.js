@@ -28042,6 +28042,23 @@ function parseScore(value) {
 function normalizeBaseUrl(baseUrl2) {
   return baseUrl2.endsWith("/") ? baseUrl2.slice(0, -1) : baseUrl2;
 }
+function buildRequestHeaders(apiKey, config, env) {
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json"
+  };
+  const openRouterHeaders = env.OPENROUTER_HTTP_REFERER || env.OPENROUTER_REFERER;
+  const openRouterTitle = env.OPENROUTER_TITLE || env.OPENROUTER_SITE_NAME;
+  if (config.llm.provider === "openrouter" && (openRouterHeaders || openRouterTitle)) {
+    if (openRouterHeaders) {
+      headers["HTTP-Referer"] = openRouterHeaders;
+    }
+    if (openRouterTitle) {
+      headers["X-OpenRouter-Title"] = openRouterTitle;
+    }
+  }
+  return headers;
+}
 function resolveApiKey(env) {
   const apiKey = [env.OPENAI_API_KEY, env.OPENROUTER_API_KEY].find((value) => value && value.length > 0);
   if (!apiKey) {
@@ -28225,8 +28242,7 @@ async function analyzePullRequestWithLlm(files, baseline, config, mode, env = pr
       let response;
       try {
         response = await client.postJson(`${baseUrl2}/chat/completions`, payload, {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json"
+          ...buildRequestHeaders(apiKey, config, env)
         });
       } catch (error) {
         const errorContext = normalizeHttpClientError(error);

@@ -169,6 +169,39 @@ describe("LLM analysis", () => {
     expect(result.score).toBe(7);
   });
 
+  it("keeps hybrid level aligned with the final score when heuristic score wins", async () => {
+    const remote = await startOpenAiCompatibleServer(
+      JSON.stringify({
+        score: 3,
+        level: "Low",
+        reviewGuidance: ["Review the auth change."],
+        recommendedLabels: [],
+        reviewerAreas: []
+      })
+    );
+    const highRiskFiles: ChangedFile[] = [
+      {
+        filename: "src/auth.ts",
+        status: "modified",
+        additions: 700,
+        deletions: 0,
+        changes: 700
+      }
+    ];
+    const config = mergeConfig({ llm: { enabled: true } });
+    const baseline = scorePullRequest(highRiskFiles, config);
+
+    const result = await analyzePullRequestWithLlm(highRiskFiles, baseline, config, "hybrid", {
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: remote.baseUrl
+    });
+
+    expect(baseline.score).toBe(8);
+    expect(baseline.level).toBe("High");
+    expect(result.score).toBe(8);
+    expect(result.level).toBe("High");
+  });
+
   it("returns the heuristic result when LLM is disabled", async () => {
     const config = mergeConfig({ llm: { enabled: false } });
     const baseline = scorePullRequest(files, config);

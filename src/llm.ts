@@ -165,7 +165,7 @@ function parseChatContent(body: unknown): string {
 
 function mergeAssessment(baseline: RiskResult, assessment: LlmAssessment, mode: JudgeMode): RiskResult {
   const score = mode === "hybrid" ? Math.max(baseline.score, assessment.score) : assessment.score;
-  const level = assessment.level ?? riskLevelForScore(score);
+  const level = score === assessment.score ? (assessment.level ?? riskLevelForScore(score)) : riskLevelForScore(score);
   const summaryGuidance = assessment.summary ? [`LLM summary: ${assessment.summary}`] : [];
   const driverPoints = Math.max(1, score - baseline.score);
 

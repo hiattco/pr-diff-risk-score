@@ -5,8 +5,11 @@ import path from "node:path";
 import yaml from "js-yaml";
 import { renderRiskComment } from "./comment";
 import { getPullRequestContext, listChangedFiles, updateRiskComment, createRiskComment } from "./github";
+import { analyzePullRequestWithLlm } from "./llm";
 import { mergeConfig } from "./rules";
 import { scorePullRequest } from "./riskScorer";
+import { serializeRiskResult } from "./output";
+import { resolveJudgeMode } from "./judge";
 import type { CommentMode, PartialRiskConfig } from "./types";
 
 function parseFailThreshold(value: string): number {
@@ -44,17 +47,28 @@ export async function run(): Promise<void> {
   const token = core.getInput("github-token", { required: true });
   const failThreshold = parseFailThreshold(core.getInput("fail-threshold") || "0");
   const commentMode = parseCommentMode(core.getInput("comment-mode") || "update");
+  const judgeModeInput = core.getInput("mode");
   const configPath = core.getInput("config-path") || ".github/pr-risk-score.yml";
+  const llmModelOverride = core.getInput("llm-model");
 
   const octokit = github.getOctokit(token);
   const prContext = getPullRequestContext();
-  const config = mergeConfig(loadConfig(configPath));
+  const loadedConfig = loadConfig(configPath);
+  const config = mergeConfig(loadedConfig);
+  const env = llmModelOverride ? { ...process.env, LLM_MODEL: llmModelOverride } : process.env;
+  const judgeMode = resolveJudgeMode(judgeModeInput, config.mode, config);
   const files = await listChangedFiles(octokit, prContext);
-  const result = scorePullRequest(files, config);
+  const heuristicResult = scorePullRequest(files, config);
+  const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode, env);
   const comment = renderRiskComment(result);
+  core.info(`Using judge mode: ${judgeMode}.`);
 
   core.setOutput("risk-score", String(result.score));
+  core.setOutput("slop-score", String(result.slopScore));
+  core.setOutput("overall-score", String(result.overallScore));
   core.setOutput("risk-level", result.level);
+  core.setOutput("json", serializeRiskResult(result));
+  core.setOutput("risk-labels", result.recommendedLabels.join(","));
   core.info(comment);
 
   if (commentMode === "update") {

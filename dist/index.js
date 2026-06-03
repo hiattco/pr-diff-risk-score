@@ -19070,7 +19070,7 @@ var require_lib = __commonJS({
     var RetryableHttpVerbs = ["OPTIONS", "GET", "DELETE", "HEAD"];
     var ExponentialBackoffCeiling = 10;
     var ExponentialBackoffTimeSlice = 5;
-    var HttpClientError = class _HttpClientError extends Error {
+    var HttpClientError2 = class _HttpClientError extends Error {
       constructor(message, statusCode) {
         super(message);
         this.name = "HttpClientError";
@@ -19078,7 +19078,7 @@ var require_lib = __commonJS({
         Object.setPrototypeOf(this, _HttpClientError.prototype);
       }
     };
-    exports2.HttpClientError = HttpClientError;
+    exports2.HttpClientError = HttpClientError2;
     var HttpClientResponse = class {
       constructor(message) {
         this.message = message;
@@ -19115,7 +19115,7 @@ var require_lib = __commonJS({
       const parsedUrl = new URL(requestUrl);
       return parsedUrl.protocol === "https:";
     }
-    var HttpClient2 = class {
+    var HttpClient3 = class {
       constructor(userAgent2, handlers, requestOptions) {
         this._ignoreSslError = false;
         this._allowRedirects = true;
@@ -19611,7 +19611,7 @@ var require_lib = __commonJS({
               } else {
                 msg = `Failed request: (${statusCode})`;
               }
-              const err = new HttpClientError(msg, statusCode);
+              const err = new HttpClientError2(msg, statusCode);
               err.result = response.result;
               reject(err);
             } else {
@@ -19621,7 +19621,7 @@ var require_lib = __commonJS({
         });
       }
     };
-    exports2.HttpClient = HttpClient2;
+    exports2.HttpClient = HttpClient3;
     var lowercaseKeys2 = (obj) => Object.keys(obj).reduce((c, k) => (c[k.toLowerCase()] = obj[k], c), {});
   }
 });
@@ -21458,10 +21458,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports2.error = error;
-    function warning(message, properties = {}) {
+    function warning3(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports2.warning = warning;
+    exports2.warning = warning3;
     function notice(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -21668,7 +21668,7 @@ __export(index_exports, {
   run: () => run
 });
 module.exports = __toCommonJS(index_exports);
-var core = __toESM(require_core());
+var core3 = __toESM(require_core());
 
 // node_modules/@actions/github/lib/context.js
 var import_fs = require("fs");
@@ -27788,14 +27788,23 @@ function bulletList(items) {
 }
 function renderRiskComment(result) {
   const drivers = result.drivers.length > 0 ? result.drivers.map((driver) => `${driver.label} (+${driver.points})`) : ["No major risk drivers detected"];
+  const slopDrivers = result.slopDrivers.length > 0 ? result.slopDrivers.map((driver) => `${driver.label} (+${driver.points})`) : ["No major review-quality drivers detected"];
   return `${COMMENT_MARKER}
 ## PR Diff Risk Score
 
 **Risk score:** ${result.score}/10  
 **Risk level:** ${result.level}
+**Review-quality score:** ${result.slopScore}/10
+**Overall score:** ${result.overallScore}/10
 
 ### Main drivers
 ${bulletList(drivers)}
+
+### Review-quality drivers
+${bulletList(slopDrivers)}
+
+### Recommended labels
+${bulletList(result.recommendedLabels)}
 
 ### Suggested reviewer area
 ${bulletList(result.reviewerAreas)}
@@ -27862,6 +27871,10 @@ async function updateRiskComment(octokit, context3, body) {
   });
   return "updated";
 }
+
+// src/llm.ts
+var core = __toESM(require_core());
+var import_http_client = __toESM(require_lib());
 
 // src/rules.ts
 var defaultConfig = {
@@ -27956,6 +27969,14 @@ var defaultConfig = {
     frontend: ["frontend"],
     testOnly: ["standard-review"],
     default: ["codeowners/default"]
+  },
+  mode: "heuristic",
+  llm: {
+    enabled: false,
+    provider: "openai",
+    model: void 0,
+    maxDiffChars: 6e3,
+    requireJson: true
   }
 };
 function mergeConfig(partial) {
@@ -27966,7 +27987,9 @@ function mergeConfig(partial) {
     weights: { ...defaultConfig.weights, ...partial.weights },
     thresholds: { ...defaultConfig.thresholds, ...partial.thresholds },
     patterns: { ...defaultConfig.patterns, ...partial.patterns },
-    reviewers: { ...defaultConfig.reviewers, ...partial.reviewers }
+    reviewers: { ...defaultConfig.reviewers, ...partial.reviewers },
+    mode: partial.mode ?? defaultConfig.mode,
+    llm: { ...defaultConfig.llm, ...partial.llm }
   };
 }
 function riskLevelForScore(score, config = defaultConfig) {
@@ -27983,6 +28006,284 @@ function riskLevelForScore(score, config = defaultConfig) {
 }
 function clampScore(score) {
   return Math.max(1, Math.min(10, score));
+}
+
+// src/llm.ts
+var MAX_RETRIES = 2;
+var BASE_RETRY_DELAY_MS = 250;
+var RETRYABLE_STATUS_CODES = /* @__PURE__ */ new Set([429, 500, 502, 503, 504]);
+function unique(values) {
+  return Array.from(new Set(values.filter((value) => value.length > 0)));
+}
+function getProperty(value, key) {
+  if (typeof value !== "object" || value === null || !(key in value)) {
+    return void 0;
+  }
+  return Reflect.get(value, key);
+}
+function readStringArray(value) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  return value.filter((item) => typeof item === "string");
+}
+function readRiskLevel(value) {
+  if (value === "Low" || value === "Medium" || value === "High" || value === "Critical") {
+    return value;
+  }
+  return void 0;
+}
+function parseScore(value) {
+  if (typeof value !== "number" || !Number.isInteger(value) || value < 1 || value > 10) {
+    throw new Error("LLM JSON response must include an integer score from 1 to 10.");
+  }
+  return value;
+}
+function normalizeBaseUrl(baseUrl2) {
+  return baseUrl2.endsWith("/") ? baseUrl2.slice(0, -1) : baseUrl2;
+}
+function buildRequestHeaders(apiKey, config, env) {
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json"
+  };
+  const openRouterHeaders = env.OPENROUTER_HTTP_REFERER || env.OPENROUTER_REFERER;
+  const openRouterTitle = env.OPENROUTER_TITLE || env.OPENROUTER_SITE_NAME;
+  if (config.llm.provider === "openrouter" && (openRouterHeaders || openRouterTitle)) {
+    if (openRouterHeaders) {
+      headers["HTTP-Referer"] = openRouterHeaders;
+    }
+    if (openRouterTitle) {
+      headers["X-OpenRouter-Title"] = openRouterTitle;
+    }
+  }
+  return headers;
+}
+function resolveApiKey(env) {
+  const apiKey = [env.OPENAI_API_KEY, env.OPENROUTER_API_KEY].find((value) => value && value.length > 0);
+  if (!apiKey) {
+    throw new Error("LLM is enabled but no API key was found. Set OPENAI_API_KEY or OPENROUTER_API_KEY.");
+  }
+  return apiKey;
+}
+function resolveBaseUrl(config, env) {
+  const configured = config.llm.baseUrl ?? env.OPENAI_BASE_URL ?? env.OPENAI_API_BASE_URL ?? env.OPENROUTER_BASE_URL;
+  if (configured) {
+    return normalizeBaseUrl(configured);
+  }
+  return config.llm.provider === "openrouter" ? "https://openrouter.ai/api/v1" : "https://api.openai.com/v1";
+}
+function resolveModel(config, env) {
+  return env.LLM_MODEL ?? config.llm.model ?? "gpt-4o";
+}
+function changedFileSummary(file) {
+  const patch = file.patch ? `
+${file.patch}` : "";
+  return `File: ${file.filename}
+Status: ${file.status}
+Additions: ${file.additions}
+Deletions: ${file.deletions}${patch}`;
+}
+function buildDiffPrompt(files, maxDiffChars) {
+  const fullDiff = files.map(changedFileSummary).join("\n\n---\n\n");
+  return fullDiff.length > maxDiffChars ? `${fullDiff.slice(0, maxDiffChars)}
+
+[diff truncated]` : fullDiff;
+}
+function buildChatRequest(files, baseline, config, env) {
+  const maxDiffChars = config.llm.maxDiffChars ?? 6e3;
+  const model = resolveModel(config, env);
+  const baseRequest = {
+    model,
+    temperature: 0,
+    messages: [
+      {
+        role: "system",
+        content: "You assess pull request diff risk. Return only JSON with score, level, summary, reviewGuidance, recommendedLabels, and reviewerAreas."
+      },
+      {
+        role: "user",
+        content: `Heuristic score: ${baseline.score}/10 (${baseline.level}).
+Review guidance: ${baseline.reviewGuidance.join("; ")}
+
+Diff:
+${buildDiffPrompt(files, maxDiffChars)}`
+      }
+    ]
+  };
+  if (config.llm.requireJson ?? true) {
+    return {
+      ...baseRequest,
+      response_format: { type: "json_object" }
+    };
+  }
+  return baseRequest;
+}
+function parseAssessment(content, requireJson, fallbackScore) {
+  if (!requireJson) {
+    return {
+      score: fallbackScore,
+      reviewGuidance: [content],
+      recommendedLabels: [],
+      reviewerAreas: []
+    };
+  }
+  let parsed;
+  try {
+    parsed = JSON.parse(content);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new Error("LLM response was not valid JSON.");
+    }
+    throw error;
+  }
+  const score = parseScore(getProperty(parsed, "score"));
+  const level = readRiskLevel(getProperty(parsed, "level"));
+  const summary = getProperty(parsed, "summary");
+  const assessment = {
+    score,
+    reviewGuidance: readStringArray(getProperty(parsed, "reviewGuidance")),
+    recommendedLabels: readStringArray(getProperty(parsed, "recommendedLabels")),
+    reviewerAreas: readStringArray(getProperty(parsed, "reviewerAreas"))
+  };
+  return {
+    ...assessment,
+    ...level ? { level } : {},
+    ...typeof summary === "string" ? { summary } : {}
+  };
+}
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+function getRetryDelayMs(headers, attempt) {
+  if (!headers) {
+    return BASE_RETRY_DELAY_MS * 2 ** attempt;
+  }
+  const header = headers["retry-after"];
+  if (typeof header === "string") {
+    const value = Number.parseInt(header, 10);
+    if (!Number.isNaN(value) && value > 0) {
+      return value * 1e3;
+    }
+    const retryAt = Date.parse(header);
+    if (!Number.isNaN(retryAt)) {
+      const delay = retryAt - Date.now();
+      return delay > 0 ? delay : 0;
+    }
+  }
+  return BASE_RETRY_DELAY_MS * 2 ** attempt;
+}
+function normalizeHttpClientError(error) {
+  if (!(error instanceof import_http_client.HttpClientError)) {
+    return void 0;
+  }
+  if (typeof error.statusCode === "number" && Number.isFinite(error.statusCode) && error.statusCode > 0) {
+    return {
+      statusCode: error.statusCode,
+      body: JSON.stringify(error.result ?? error.message)
+    };
+  }
+  return {
+    body: JSON.stringify(error.result ?? error.message)
+  };
+}
+function isRetryableStatus(statusCode) {
+  if (typeof statusCode !== "number") {
+    return false;
+  }
+  return RETRYABLE_STATUS_CODES.has(statusCode);
+}
+function parseChatContent(body) {
+  const choices = getProperty(body, "choices");
+  if (!Array.isArray(choices)) {
+    throw new Error("LLM response did not include choices.");
+  }
+  const firstChoice = choices[0];
+  if (!firstChoice) {
+    throw new Error("LLM response did not include choices.");
+  }
+  const content = getProperty(getProperty(firstChoice, "message"), "content");
+  if (typeof content !== "string") {
+    throw new Error("LLM response did not include message content.");
+  }
+  return content;
+}
+function mergeAssessment(baseline, assessment, mode) {
+  const score = mode === "hybrid" ? Math.max(baseline.score, assessment.score) : assessment.score;
+  const level = score === assessment.score ? assessment.level ?? riskLevelForScore(score) : riskLevelForScore(score);
+  const summaryGuidance = assessment.summary ? [`LLM summary: ${assessment.summary}`] : [];
+  const driverPoints = Math.max(1, score - baseline.score);
+  return {
+    ...baseline,
+    score,
+    level,
+    overallScore: Math.max(score, baseline.slopScore),
+    recommendedLabels: unique([...baseline.recommendedLabels, ...assessment.recommendedLabels]),
+    reviewerAreas: unique([...baseline.reviewerAreas, ...assessment.reviewerAreas]),
+    reviewGuidance: unique([...summaryGuidance, ...assessment.reviewGuidance, ...baseline.reviewGuidance]),
+    drivers: [
+      ...baseline.drivers,
+      {
+        key: "llmAssessment",
+        label: "LLM diff assessment",
+        points: driverPoints
+      }
+    ]
+  };
+}
+async function analyzePullRequestWithLlm(files, baseline, config, mode, env = process.env) {
+  if (!config.llm.enabled || mode === "heuristic") {
+    return baseline;
+  }
+  const apiKey = resolveApiKey(env);
+  const baseUrl2 = resolveBaseUrl(config, env);
+  const payload = buildChatRequest(files, baseline, config, env);
+  const client = new import_http_client.HttpClient("pr-diff-risk-score");
+  try {
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      let response;
+      try {
+        response = await client.postJson(`${baseUrl2}/chat/completions`, payload, {
+          ...buildRequestHeaders(apiKey, config, env)
+        });
+      } catch (error) {
+        const errorContext = normalizeHttpClientError(error);
+        const statusCode = errorContext?.statusCode;
+        if (isRetryableStatus(statusCode) && attempt < MAX_RETRIES) {
+          const retryDelayMs = getRetryDelayMs(void 0, attempt);
+          core.warning(`LLM request failed with HTTP ${statusCode}; retrying in ${retryDelayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES}).`);
+          await sleep(retryDelayMs);
+          continue;
+        }
+        const message = errorContext?.body ?? String(error);
+        throw new Error(`LLM request failed with HTTP ${statusCode ?? "unknown"}: ${message}`);
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (isRetryableStatus(response.statusCode) && attempt < MAX_RETRIES) {
+          const retryDelayMs = getRetryDelayMs(response.headers, attempt);
+          core.warning(
+            `LLM request failed with HTTP ${response.statusCode}; retrying in ${retryDelayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES}).`
+          );
+          await sleep(retryDelayMs);
+          continue;
+        }
+        const responseBody = JSON.stringify(response.result ?? "");
+        throw new Error(`LLM request failed with HTTP ${response.statusCode}: ${responseBody}`);
+      }
+      const assessment = parseAssessment(parseChatContent(response.result), config.llm.requireJson ?? true, baseline.score);
+      return mergeAssessment(baseline, assessment, mode);
+    }
+    throw new Error(`LLM request failed after ${MAX_RETRIES + 1} attempts.`);
+  } catch (error) {
+    if (mode === "hybrid") {
+      const message = error instanceof Error ? error.message : String(error);
+      core.warning(`LLM analysis failed; using heuristic result. ${message}`);
+      return baseline;
+    }
+    throw error;
+  }
 }
 
 // node_modules/balanced-match/dist/esm/index.js
@@ -29823,8 +30124,11 @@ function looksGenerated(file, config) {
   }
   return file.additions >= 1e3 && hasLowExtensionSignal(file.filename);
 }
-function unique(values) {
+function unique2(values) {
   return Array.from(new Set(values));
+}
+function baseScoreFromDrivers(drivers) {
+  return drivers.reduce((sum, driver) => sum + driver.points, 0);
 }
 function buildReviewGuidance(drivers, reviewerAreas) {
   const keys = new Set(drivers.map((driver) => driver.key));
@@ -29855,6 +30159,20 @@ function buildReviewGuidance(drivers, reviewerAreas) {
   }
   return guidance;
 }
+function buildRecommendedLabels(level, filesChanged, totalChanges, deletedFiles, drivers) {
+  const keys = new Set(drivers.map((driver) => driver.key));
+  const labels = [`risk:${level.toLowerCase()}`];
+  if (keys.has("noTestsChanged")) {
+    labels.push("needs-tests");
+  }
+  if (keys.has("migrationTouched") || keys.has("sensitiveTouched") || keys.has("configTouched") || filesChanged >= 15 || totalChanges >= 700 || deletedFiles >= 5) {
+    labels.push("needs-context");
+  }
+  if (level === "High" || level === "Critical") {
+    labels.push("review-carefully");
+  }
+  return unique2(labels);
+}
 function reviewerAreasForFiles(files, config, testsChanged) {
   const paths = files.map((file) => file.filename);
   const areas = [];
@@ -29877,37 +30195,55 @@ function reviewerAreasForFiles(files, config, testsChanged) {
   if (testsChanged && nonTestFiles.length === 0) {
     areas.push(...config.reviewers.testOnly);
   }
-  return unique(areas.length > 0 ? areas : config.reviewers.default);
+  return unique2(areas.length > 0 ? areas : config.reviewers.default);
 }
-function scorePullRequest(files, config = defaultConfig) {
+function buildDrivers(files, config, testsChanged, deletedFiles, includeReviewerSignals) {
   const drivers = [];
   const totalChanges = files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
-  const deletedFiles = files.filter((file) => file.status === "removed").length;
-  const testsChanged = files.some((file) => matchesAny(file.filename, config.patterns.tests));
   addDriver(drivers, "filesChanged", `${files.length} files changed`, fileCountPoints(files.length, config));
   addDriver(drivers, "linesChanged", `${totalChanges} total line changes`, lineCountPoints(totalChanges, config));
-  if (files.some((file) => matchesAny(file.filename, config.patterns.config))) {
-    addDriver(drivers, "configTouched", "Configuration or dependency file changed", config.weights.configTouched);
-  }
-  if (files.some((file) => matchesAny(file.filename, config.patterns.migrations))) {
-    addDriver(drivers, "migrationTouched", "Database or migration file changed", config.weights.migrationTouched);
-  }
   if (!testsChanged) {
     addDriver(drivers, "noTestsChanged", "No tests changed", config.weights.noTestsChanged);
   }
-  if (files.some((file) => matchesAny(file.filename, config.patterns.sensitive))) {
-    addDriver(drivers, "sensitiveTouched", "Sensitive auth, payment, privacy, or data area touched", config.weights.sensitiveTouched);
-  }
   if (files.some((file) => looksGenerated(file, config))) {
-    addDriver(drivers, "generatedTouched", "Generated-looking or bundled files changed", config.weights.generatedTouched);
+    addDriver(drivers, "generatedTouched", "Generated-looking or bundled files changed", includeReviewerSignals ? config.weights.generatedTouched : Math.floor(config.weights.generatedTouched / 2));
   }
-  addDriver(drivers, deletedFiles >= 5 ? "manyDeletedFiles" : "deletedFiles", `${deletedFiles} files deleted`, deletedFilePoints(deletedFiles, config));
-  const score = clampScore(1 + drivers.reduce((sum, driver) => sum + driver.points, 0));
+  if (deletedFiles > 0) {
+    const deletedPointValue = includeReviewerSignals ? deletedFilePoints(deletedFiles, config) : Math.floor(deletedFilePoints(deletedFiles, config) / 2);
+    addDriver(drivers, deletedFiles >= 5 ? "manyDeletedFiles" : "deletedFiles", `${deletedFiles} files deleted`, deletedPointValue);
+  }
+  if (includeReviewerSignals) {
+    if (files.some((file) => matchesAny(file.filename, config.patterns.config))) {
+      addDriver(drivers, "configTouched", "Configuration or dependency file changed", config.weights.configTouched);
+    }
+    if (files.some((file) => matchesAny(file.filename, config.patterns.migrations))) {
+      addDriver(drivers, "migrationTouched", "Database or migration file changed", config.weights.migrationTouched);
+    }
+    if (files.some((file) => matchesAny(file.filename, config.patterns.sensitive))) {
+      addDriver(drivers, "sensitiveTouched", "Sensitive auth, payment, privacy, or data area touched", config.weights.sensitiveTouched);
+    }
+  }
+  return drivers;
+}
+function scorePullRequest(files, config = defaultConfig) {
+  const totalChanges = files.reduce((sum, file) => sum + file.additions + file.deletions, 0);
+  const deletedFiles = files.filter((file) => file.status === "removed").length;
+  const testsChanged = files.some((file) => matchesAny(file.filename, config.patterns.tests));
+  const drivers = buildDrivers(files, config, testsChanged, deletedFiles, true);
+  const reviewQualityDrivers = buildDrivers(files, config, testsChanged, deletedFiles, false);
+  const score = clampScore(1 + baseScoreFromDrivers(drivers));
+  const slopScore = clampScore(1 + baseScoreFromDrivers(reviewQualityDrivers));
   const reviewerAreas = reviewerAreasForFiles(files, config, testsChanged);
+  const level = riskLevelForScore(score, config);
+  const recommendedLabels = buildRecommendedLabels(level, files.length, totalChanges, deletedFiles, drivers);
   return {
     score,
-    level: riskLevelForScore(score, config),
+    slopScore,
+    overallScore: Math.max(score, slopScore),
+    level,
+    recommendedLabels,
     drivers,
+    slopDrivers: reviewQualityDrivers,
     reviewerAreas,
     reviewGuidance: buildReviewGuidance(drivers, reviewerAreas),
     stats: {
@@ -29917,6 +30253,54 @@ function scorePullRequest(files, config = defaultConfig) {
       testsChanged
     }
   };
+}
+
+// src/output.ts
+function serializeRiskResult(result) {
+  const orderedDrivers = result.drivers.map((driver) => ({
+    key: driver.key,
+    label: driver.label,
+    points: driver.points
+  }));
+  const orderedStats = {
+    filesChanged: result.stats.filesChanged,
+    totalChanges: result.stats.totalChanges,
+    deletedFiles: result.stats.deletedFiles,
+    testsChanged: result.stats.testsChanged
+  };
+  const orderedResult = {
+    score: result.score,
+    slopScore: result.slopScore,
+    overallScore: result.overallScore,
+    level: result.level,
+    drivers: orderedDrivers,
+    slopDrivers: result.slopDrivers,
+    recommendedLabels: result.recommendedLabels,
+    reviewerAreas: result.reviewerAreas,
+    reviewGuidance: result.reviewGuidance,
+    stats: orderedStats
+  };
+  return JSON.stringify(orderedResult);
+}
+
+// src/judge.ts
+var core2 = __toESM(require_core());
+function parseJudgeMode(value) {
+  if (value === "heuristic" || value === "llm" || value === "hybrid") {
+    return value;
+  }
+  throw new Error("mode must be one of: heuristic, llm, hybrid.");
+}
+function resolveJudgeMode(actionModeInput, configMode, config) {
+  const mode = actionModeInput ? parseJudgeMode(actionModeInput) : parseJudgeMode(configMode);
+  if (mode === "heuristic") {
+    return mode;
+  }
+  if (config.llm.enabled) {
+    return mode;
+  }
+  core2.warning("judge mode is llm/hybrid but llm is disabled; falling back to heuristic.");
+  return "heuristic";
 }
 
 // src/index.ts
@@ -29937,7 +30321,7 @@ function loadConfig(configPath) {
   const workspace = process.env.GITHUB_WORKSPACE ?? process.cwd();
   const absolutePath = import_node_path.default.isAbsolute(configPath) ? configPath : import_node_path.default.join(workspace, configPath);
   if (!import_node_fs.default.existsSync(absolutePath)) {
-    core.info(`No config file found at ${configPath}; using defaults.`);
+    core3.info(`No config file found at ${configPath}; using defaults.`);
     return void 0;
   }
   const loaded = index_vite_proxy_tmp_default.load(import_node_fs.default.readFileSync(absolutePath, "utf8"));
@@ -29947,34 +30331,45 @@ function loadConfig(configPath) {
   return loaded;
 }
 async function run() {
-  const token = core.getInput("github-token", { required: true });
-  const failThreshold = parseFailThreshold(core.getInput("fail-threshold") || "0");
-  const commentMode = parseCommentMode(core.getInput("comment-mode") || "update");
-  const configPath = core.getInput("config-path") || ".github/pr-risk-score.yml";
+  const token = core3.getInput("github-token", { required: true });
+  const failThreshold = parseFailThreshold(core3.getInput("fail-threshold") || "0");
+  const commentMode = parseCommentMode(core3.getInput("comment-mode") || "update");
+  const judgeModeInput = core3.getInput("mode");
+  const configPath = core3.getInput("config-path") || ".github/pr-risk-score.yml";
+  const llmModelOverride = core3.getInput("llm-model");
   const octokit = getOctokit(token);
   const prContext = getPullRequestContext();
-  const config = mergeConfig(loadConfig(configPath));
+  const loadedConfig = loadConfig(configPath);
+  const config = mergeConfig(loadedConfig);
+  const env = llmModelOverride ? { ...process.env, LLM_MODEL: llmModelOverride } : process.env;
+  const judgeMode = resolveJudgeMode(judgeModeInput, config.mode, config);
   const files = await listChangedFiles(octokit, prContext);
-  const result = scorePullRequest(files, config);
+  const heuristicResult = scorePullRequest(files, config);
+  const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode, env);
   const comment = renderRiskComment(result);
-  core.setOutput("risk-score", String(result.score));
-  core.setOutput("risk-level", result.level);
-  core.info(comment);
+  core3.info(`Using judge mode: ${judgeMode}.`);
+  core3.setOutput("risk-score", String(result.score));
+  core3.setOutput("slop-score", String(result.slopScore));
+  core3.setOutput("overall-score", String(result.overallScore));
+  core3.setOutput("risk-level", result.level);
+  core3.setOutput("json", serializeRiskResult(result));
+  core3.setOutput("risk-labels", result.recommendedLabels.join(","));
+  core3.info(comment);
   if (commentMode === "update") {
     const operation = await updateRiskComment(octokit, prContext, comment);
-    core.info(`Risk comment ${operation}.`);
+    core3.info(`Risk comment ${operation}.`);
   } else if (commentMode === "new") {
     await createRiskComment(octokit, prContext, comment);
-    core.info("Risk comment created.");
+    core3.info("Risk comment created.");
   } else {
-    core.info("Comment mode is off; skipped PR comment.");
+    core3.info("Comment mode is off; skipped PR comment.");
   }
   if (failThreshold > 0 && result.score >= failThreshold) {
-    core.setFailed(`PR risk score ${result.score}/10 meets or exceeds fail threshold ${failThreshold}.`);
+    core3.setFailed(`PR risk score ${result.score}/10 meets or exceeds fail threshold ${failThreshold}.`);
   }
 }
 run().catch((error) => {
-  core.setFailed(error instanceof Error ? error.message : String(error));
+  core3.setFailed(error instanceof Error ? error.message : String(error));
 });
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {

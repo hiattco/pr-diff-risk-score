@@ -30,6 +30,9 @@ jobs:
     permissions:
       contents: read
       pull-requests: read
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
     steps:
       - uses: actions/checkout@v6
       - uses: ./
@@ -37,17 +40,25 @@ jobs:
           github-token: ${{ github.token }}
           comment-mode: off
           fail-threshold: "0"
+          mode: ${{ secrets.OPENROUTER_API_KEY != '' && 'hybrid' || 'heuristic' }}
+          llm-model: ${{ vars.LLM_MODEL }}
 
   risk-score-comment:
-    if: github.event_name == 'pull_request_target'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
       issues: write
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
     steps:
-      - uses: hiattco/pr-diff-risk-score@main
+      - uses: actions/checkout@v6
+      - uses: ./
         with:
           github-token: ${{ github.token }}
           comment-mode: update
           fail-threshold: "0"
+          mode: ${{ secrets.OPENROUTER_API_KEY != '' && 'hybrid' || 'heuristic' }}
+          llm-model: ${{ vars.LLM_MODEL }}

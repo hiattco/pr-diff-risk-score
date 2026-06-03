@@ -1,0 +1,27 @@
+name: PR Risk Score (vars-driven)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  risk-score:
+    runs-on: ubuntu-latest
+    env:
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ./
+        with:
+          github-token: ${{ github.token }}
+          config-path: .github/pr-risk-score.yml
+          llm-model: ${{ vars.LLM_MODEL }}
+          comment-mode: update
+          fail-threshold: "0"
+          mode: hybrid

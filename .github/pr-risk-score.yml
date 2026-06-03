@@ -1,0 +1,6 @@
+mode: hybrid
+llm:
+  enabled: true
+  provider: openai
+  maxDiffChars: 6000
+  requireJson: true

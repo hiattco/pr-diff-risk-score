@@ -128,7 +128,7 @@ mode: hybrid
 llm:
   enabled: true
   provider: openai
-  model: moonshotai/kimi-k2.6:free
+  model: openrouter/owl-alpha
   maxDiffChars: 6000
   requireJson: true
 ```

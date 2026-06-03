@@ -18,6 +18,9 @@ inputs:
     description: Path to an optional YAML configuration file.
     required: false
     default: .github/pr-risk-score.yml
+  llm-model:
+    description: Optional LLM model override. If set, this value replaces config.llm.model.
+    required: false
   mode:
     description: Risk judge mode. One of heuristic, llm, or hybrid.
     required: false
@@ -26,6 +29,8 @@ outputs:
     description: The computed risk score from 1 to 10.
   risk-level:
     description: The computed risk level.
+  json:
+    description: JSON object with full risk computation result.
   slop-score:
     description: The computed review-quality / slop score from 1 to 10.
   overall-score:

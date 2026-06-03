@@ -103,6 +103,47 @@ async function startFailingOpenAiCompatibleServer(): Promise<{ readonly baseUrl:
   };
 }
 
+async function startRateLimitedThenSuccessOpenAiCompatibleServer(): Promise<{ readonly baseUrl: string }> {
+  let callCount = 0;
+
+  server = http.createServer((_request, response) => {
+    callCount += 1;
+
+    if (callCount < 3) {
+      response.writeHead(429, { "Retry-After": "0", "Content-Type": "application/json" });
+      response.end(JSON.stringify({ error: { message: "Too many requests" } }));
+      return;
+    }
+
+    response.writeHead(200, { "Content-Type": "application/json" });
+    response.end(
+      JSON.stringify({
+        choices: [{ message: { content: JSON.stringify({
+          score: 7,
+          level: "Medium",
+          summary: "Recovered after retry.",
+          reviewGuidance: ["Add retry-aware backoff checks."],
+          recommendedLabels: ["llm:retry"],
+          reviewerAreas: ["ci/reliability"]
+        }) } }]
+      })
+    );
+  });
+
+  await new Promise<void>((resolve) => {
+    server?.listen(0, "127.0.0.1", resolve);
+  });
+
+  const address = server.address();
+  if (!address || typeof address === "string") {
+    throw new Error("test server did not expose a TCP address.");
+  }
+
+  return {
+    baseUrl: `http://127.0.0.1:${address.port}/v1`
+  };
+}
+
 describe("LLM analysis", () => {
   it("uses an OpenAI-compatible endpoint and merges JSON guidance", async () => {
     const remote = await startOpenAiCompatibleServer(
@@ -119,7 +160,7 @@ describe("LLM analysis", () => {
       mode: "hybrid",
       llm: {
         enabled: true,
-        model: "moonshotai/kimi-k2.6:free",
+        model: "openrouter/owl-alpha",
         maxDiffChars: 80,
         requireJson: true
       }
@@ -139,7 +180,7 @@ describe("LLM analysis", () => {
     expect(result.reviewGuidance).toContain("Verify access-control tests cover admin role changes.");
     expect(result.drivers.map((driver) => driver.key)).toContain("llmAssessment");
     expect(remote.body).toMatchObject({
-      model: "moonshotai/kimi-k2.6:free",
+      model: "openrouter/owl-alpha",
       response_format: { type: "json_object" }
     });
   });
@@ -226,6 +267,25 @@ describe("LLM analysis", () => {
     });
 
     expect(result).toBe(baseline);
+  });
+
+  it("retries on rate-limit response and then succeeds", async () => {
+    const remote = await startRateLimitedThenSuccessOpenAiCompatibleServer();
+    const config = mergeConfig({
+      llm: {
+        enabled: true
+      }
+    });
+    const baseline = scorePullRequest(files, config);
+
+    const result = await analyzePullRequestWithLlm(files, baseline, config, "hybrid", {
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: remote.baseUrl
+    });
+
+    expect(result.score).toBe(7);
+    expect(result.recommendedLabels).toContain("llm:retry");
+    expect(result.reviewGuidance).toContain("LLM summary: Recovered after retry.");
   });
 
   it("rejects provider errors in pure LLM mode", async () => {

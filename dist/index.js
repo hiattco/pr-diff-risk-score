@@ -19070,7 +19070,7 @@ var require_lib = __commonJS({
     var RetryableHttpVerbs = ["OPTIONS", "GET", "DELETE", "HEAD"];
     var ExponentialBackoffCeiling = 10;
     var ExponentialBackoffTimeSlice = 5;
-    var HttpClientError = class _HttpClientError extends Error {
+    var HttpClientError2 = class _HttpClientError extends Error {
       constructor(message, statusCode) {
         super(message);
         this.name = "HttpClientError";
@@ -19078,7 +19078,7 @@ var require_lib = __commonJS({
         Object.setPrototypeOf(this, _HttpClientError.prototype);
       }
     };
-    exports2.HttpClientError = HttpClientError;
+    exports2.HttpClientError = HttpClientError2;
     var HttpClientResponse = class {
       constructor(message) {
         this.message = message;
@@ -19611,7 +19611,7 @@ var require_lib = __commonJS({
               } else {
                 msg = `Failed request: (${statusCode})`;
               }
-              const err = new HttpClientError(msg, statusCode);
+              const err = new HttpClientError2(msg, statusCode);
               err.result = response.result;
               reject(err);
             } else {
@@ -28009,6 +28009,9 @@ function clampScore(score) {
 }
 
 // src/llm.ts
+var MAX_RETRIES = 2;
+var BASE_RETRY_DELAY_MS = 250;
+var RETRYABLE_STATUS_CODES = /* @__PURE__ */ new Set([429, 500, 502, 503, 504]);
 function unique(values) {
   return Array.from(new Set(values.filter((value) => value.length > 0)));
 }
@@ -28038,6 +28041,23 @@ function parseScore(value) {
 }
 function normalizeBaseUrl(baseUrl2) {
   return baseUrl2.endsWith("/") ? baseUrl2.slice(0, -1) : baseUrl2;
+}
+function buildRequestHeaders(apiKey, config, env) {
+  const headers = {
+    Authorization: `Bearer ${apiKey}`,
+    "Content-Type": "application/json"
+  };
+  const openRouterHeaders = env.OPENROUTER_HTTP_REFERER || env.OPENROUTER_REFERER;
+  const openRouterTitle = env.OPENROUTER_TITLE || env.OPENROUTER_SITE_NAME;
+  if (config.llm.provider === "openrouter" && (openRouterHeaders || openRouterTitle)) {
+    if (openRouterHeaders) {
+      headers["HTTP-Referer"] = openRouterHeaders;
+    }
+    if (openRouterTitle) {
+      headers["X-OpenRouter-Title"] = openRouterTitle;
+    }
+  }
+  return headers;
 }
 function resolveApiKey(env) {
   const apiKey = [env.OPENAI_API_KEY, env.OPENROUTER_API_KEY].find((value) => value && value.length > 0);
@@ -28128,6 +28148,49 @@ function parseAssessment(content, requireJson, fallbackScore) {
     ...typeof summary === "string" ? { summary } : {}
   };
 }
+function sleep(ms) {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+function getRetryDelayMs(headers, attempt) {
+  if (!headers) {
+    return BASE_RETRY_DELAY_MS * 2 ** attempt;
+  }
+  const header = headers["retry-after"];
+  if (typeof header === "string") {
+    const value = Number.parseInt(header, 10);
+    if (!Number.isNaN(value) && value > 0) {
+      return value * 1e3;
+    }
+    const retryAt = Date.parse(header);
+    if (!Number.isNaN(retryAt)) {
+      const delay = retryAt - Date.now();
+      return delay > 0 ? delay : 0;
+    }
+  }
+  return BASE_RETRY_DELAY_MS * 2 ** attempt;
+}
+function normalizeHttpClientError(error) {
+  if (!(error instanceof import_http_client.HttpClientError)) {
+    return void 0;
+  }
+  if (typeof error.statusCode === "number" && Number.isFinite(error.statusCode) && error.statusCode > 0) {
+    return {
+      statusCode: error.statusCode,
+      body: JSON.stringify(error.result ?? error.message)
+    };
+  }
+  return {
+    body: JSON.stringify(error.result ?? error.message)
+  };
+}
+function isRetryableStatus(statusCode) {
+  if (typeof statusCode !== "number") {
+    return false;
+  }
+  return RETRYABLE_STATUS_CODES.has(statusCode);
+}
 function parseChatContent(body) {
   const choices = getProperty(body, "choices");
   if (!Array.isArray(choices)) {
@@ -28175,16 +28238,40 @@ async function analyzePullRequestWithLlm(files, baseline, config, mode, env = pr
   const payload = buildChatRequest(files, baseline, config);
   const client = new import_http_client.HttpClient("pr-diff-risk-score");
   try {
-    const response = await client.postJson(`${baseUrl2}/chat/completions`, payload, {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    });
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      const responseBody = JSON.stringify(response.result ?? "");
-      throw new Error(`LLM request failed with HTTP ${response.statusCode}: ${responseBody}`);
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      let response;
+      try {
+        response = await client.postJson(`${baseUrl2}/chat/completions`, payload, {
+          ...buildRequestHeaders(apiKey, config, env)
+        });
+      } catch (error) {
+        const errorContext = normalizeHttpClientError(error);
+        const statusCode = errorContext?.statusCode;
+        if (isRetryableStatus(statusCode) && attempt < MAX_RETRIES) {
+          const retryDelayMs = getRetryDelayMs(void 0, attempt);
+          core.warning(`LLM request failed with HTTP ${statusCode}; retrying in ${retryDelayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES}).`);
+          await sleep(retryDelayMs);
+          continue;
+        }
+        const message = errorContext?.body ?? String(error);
+        throw new Error(`LLM request failed with HTTP ${statusCode ?? "unknown"}: ${message}`);
+      }
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (isRetryableStatus(response.statusCode) && attempt < MAX_RETRIES) {
+          const retryDelayMs = getRetryDelayMs(response.headers, attempt);
+          core.warning(
+            `LLM request failed with HTTP ${response.statusCode}; retrying in ${retryDelayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES}).`
+          );
+          await sleep(retryDelayMs);
+          continue;
+        }
+        const responseBody = JSON.stringify(response.result ?? "");
+        throw new Error(`LLM request failed with HTTP ${response.statusCode}: ${responseBody}`);
+      }
+      const assessment = parseAssessment(parseChatContent(response.result), config.llm.requireJson ?? true, baseline.score);
+      return mergeAssessment(baseline, assessment, mode);
     }
-    const assessment = parseAssessment(parseChatContent(response.result), config.llm.requireJson ?? true, baseline.score);
-    return mergeAssessment(baseline, assessment, mode);
+    throw new Error(`LLM request failed after ${MAX_RETRIES + 1} attempts.`);
   } catch (error) {
     if (mode === "hybrid") {
       const message = error instanceof Error ? error.message : String(error);
@@ -30164,6 +30251,34 @@ function scorePullRequest(files, config = defaultConfig) {
   };
 }
 
+// src/output.ts
+function serializeRiskResult(result) {
+  const orderedDrivers = result.drivers.map((driver) => ({
+    key: driver.key,
+    label: driver.label,
+    points: driver.points
+  }));
+  const orderedStats = {
+    filesChanged: result.stats.filesChanged,
+    totalChanges: result.stats.totalChanges,
+    deletedFiles: result.stats.deletedFiles,
+    testsChanged: result.stats.testsChanged
+  };
+  const orderedResult = {
+    score: result.score,
+    slopScore: result.slopScore,
+    overallScore: result.overallScore,
+    level: result.level,
+    drivers: orderedDrivers,
+    slopDrivers: result.slopDrivers,
+    recommendedLabels: result.recommendedLabels,
+    reviewerAreas: result.reviewerAreas,
+    reviewGuidance: result.reviewGuidance,
+    stats: orderedStats
+  };
+  return JSON.stringify(orderedResult);
+}
+
 // src/judge.ts
 var core2 = __toESM(require_core());
 function parseJudgeMode(value) {
@@ -30217,9 +30332,11 @@ async function run() {
   const commentMode = parseCommentMode(core3.getInput("comment-mode") || "update");
   const judgeModeInput = core3.getInput("mode");
   const configPath = core3.getInput("config-path") || ".github/pr-risk-score.yml";
+  const llmModelOverride = core3.getInput("llm-model");
   const octokit = getOctokit(token);
   const prContext = getPullRequestContext();
-  const config = mergeConfig(loadConfig(configPath));
+  const loadedConfig = loadConfig(configPath);
+  const config = llmModelOverride ? mergeConfig({ ...loadedConfig, llm: { ...loadedConfig?.llm, model: llmModelOverride } }) : mergeConfig(loadedConfig);
   const judgeMode = resolveJudgeMode(judgeModeInput, config.mode, config);
   const files = await listChangedFiles(octokit, prContext);
   const heuristicResult = scorePullRequest(files, config);
@@ -30230,6 +30347,7 @@ async function run() {
   core3.setOutput("slop-score", String(result.slopScore));
   core3.setOutput("overall-score", String(result.overallScore));
   core3.setOutput("risk-level", result.level);
+  core3.setOutput("json", serializeRiskResult(result));
   core3.setOutput("risk-labels", result.recommendedLabels.join(","));
   core3.info(comment);
   if (commentMode === "update") {

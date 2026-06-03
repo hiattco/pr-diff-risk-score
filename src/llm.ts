@@ -1,7 +1,11 @@
 import * as core from "@actions/core";
-import { HttpClient } from "@actions/http-client";
+import { HttpClient, HttpClientError } from "@actions/http-client";
 import { riskLevelForScore } from "./rules";
 import type { ChangedFile, JudgeMode, LlmAssessment, RiskConfig, RiskLevel, RiskResult } from "./types";
+
+const MAX_RETRIES = 2;
+const BASE_RETRY_DELAY_MS = 250;
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504]);
 
 type Env = Readonly<Record<string, string | undefined>>;
 
@@ -145,6 +149,58 @@ function parseAssessment(content: string, requireJson: boolean, fallbackScore: n
   };
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+function getRetryDelayMs(headers: Record<string, string | string[] | undefined> | undefined, attempt: number): number {
+  if (!headers) {
+    return BASE_RETRY_DELAY_MS * 2 ** attempt;
+  }
+
+  const header = headers["retry-after"];
+  if (typeof header === "string") {
+    const value = Number.parseInt(header, 10);
+    if (!Number.isNaN(value) && value > 0) {
+      return value * 1000;
+    }
+
+    const retryAt = Date.parse(header);
+    if (!Number.isNaN(retryAt)) {
+      const delay = retryAt - Date.now();
+      return delay > 0 ? delay : 0;
+    }
+  }
+
+  return BASE_RETRY_DELAY_MS * 2 ** attempt;
+}
+
+function normalizeHttpClientError(error: unknown): { statusCode?: number; body: string } | undefined {
+  if (!(error instanceof HttpClientError)) {
+    return undefined;
+  }
+
+  if (typeof error.statusCode === "number" && Number.isFinite(error.statusCode) && error.statusCode > 0) {
+    return {
+      statusCode: error.statusCode,
+      body: JSON.stringify(error.result ?? error.message)
+    };
+  }
+
+  return {
+    body: JSON.stringify(error.result ?? error.message)
+  };
+}
+
+function isRetryableStatus(statusCode: number | undefined): boolean {
+  if (typeof statusCode !== "number") {
+    return false;
+  }
+  return RETRYABLE_STATUS_CODES.has(statusCode);
+}
+
 function parseChatContent(body: unknown): string {
   const choices = getProperty(body, "choices");
   if (!Array.isArray(choices)) {
@@ -203,20 +259,48 @@ export async function analyzePullRequestWithLlm(
   const baseUrl = resolveBaseUrl(config, env);
   const payload = buildChatRequest(files, baseline, config);
   const client = new HttpClient("pr-diff-risk-score");
+
   try {
-    const response = await client.postJson<unknown>(`${baseUrl}/chat/completions`, payload, {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json"
-    });
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt += 1) {
+      let response;
+      try {
+        response = await client.postJson<unknown>(`${baseUrl}/chat/completions`, payload, {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json"
+        });
+      } catch (error) {
+        const errorContext = normalizeHttpClientError(error);
+        const statusCode = errorContext?.statusCode;
+        if (isRetryableStatus(statusCode) && attempt < MAX_RETRIES) {
+          const retryDelayMs = getRetryDelayMs(undefined, attempt);
+          core.warning(`LLM request failed with HTTP ${statusCode}; retrying in ${retryDelayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES}).`);
+          await sleep(retryDelayMs);
+          continue;
+        }
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      const responseBody = JSON.stringify(response.result ?? "");
-      throw new Error(`LLM request failed with HTTP ${response.statusCode}: ${responseBody}`);
+        const message = errorContext?.body ?? String(error);
+        throw new Error(`LLM request failed with HTTP ${statusCode ?? "unknown"}: ${message}`);
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        if (isRetryableStatus(response.statusCode) && attempt < MAX_RETRIES) {
+          const retryDelayMs = getRetryDelayMs(response.headers, attempt);
+          core.warning(
+            `LLM request failed with HTTP ${response.statusCode}; retrying in ${retryDelayMs}ms (attempt ${attempt + 1}/${MAX_RETRIES}).`
+          );
+          await sleep(retryDelayMs);
+          continue;
+        }
+
+        const responseBody = JSON.stringify(response.result ?? "");
+        throw new Error(`LLM request failed with HTTP ${response.statusCode}: ${responseBody}`);
+      }
+
+      const assessment = parseAssessment(parseChatContent(response.result), config.llm.requireJson ?? true, baseline.score);
+
+      return mergeAssessment(baseline, assessment, mode);
     }
-
-    const assessment = parseAssessment(parseChatContent(response.result), config.llm.requireJson ?? true, baseline.score);
-
-    return mergeAssessment(baseline, assessment, mode);
+    throw new Error(`LLM request failed after ${MAX_RETRIES + 1} attempts.`);
   } catch (error) {
     if (mode === "hybrid") {
       const message = error instanceof Error ? error.message : String(error);

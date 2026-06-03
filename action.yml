@@ -24,6 +24,26 @@ inputs:
   mode:
     description: Risk judge mode. One of heuristic, llm, or hybrid.
     required: false
+  history-mode:
+    description: Repository history mode. One of off, auto, or local-git.
+    required: false
+    default: auto
+  history-days:
+    description: Lookback window, in days, for recent churn, bugfix, and revert history.
+    required: false
+    default: "180"
+  bugfix-keywords:
+    description: Comma-separated commit-message keywords used to identify bugfix/revert history.
+    required: false
+    default: fix,bug,regression,revert,hotfix,incident
+  architecture-mode:
+    description: Architecture adherence mode. One of off, auto, or llm.
+    required: false
+    default: off
+  architecture-max-doc-chars:
+    description: Maximum total Markdown architecture context sent to the architecture assessment.
+    required: false
+    default: "12000"
 outputs:
   risk-score:
     description: The computed risk score from 1 to 10.

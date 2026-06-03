@@ -4,6 +4,12 @@ export type CommentMode = "update" | "new" | "off";
 
 export type JudgeMode = "heuristic" | "llm" | "hybrid";
 
+export type HistoryMode = "off" | "auto" | "local-git";
+
+export type ArchitectureMode = "off" | "auto" | "llm";
+
+export type ArchitectureSeverity = "minor" | "moderate" | "major" | "critical";
+
 export interface ChangedFile {
   filename: string;
   status: string;
@@ -27,6 +33,14 @@ export interface ScoreWeights {
   generatedTouched: number;
   deletedFiles: number;
   manyDeletedFiles: number;
+  hotspotTouched: number;
+  highChurnTouched: number;
+  bugfixHotspotTouched: number;
+  recentlyRevertedTouched: number;
+  architectureMinorDrift: number;
+  architectureModerateDrift: number;
+  architectureMajorDrift: number;
+  architectureCriticalDrift: number;
 }
 
 export interface RiskThresholds {
@@ -57,6 +71,83 @@ export interface LlmConfig {
   requireJson?: boolean;
 }
 
+export interface HistoryConfig {
+  enabled: boolean;
+  mode: HistoryMode;
+  lookbackDays: number;
+  recentCommitThreshold: number;
+  churnThreshold: number;
+  bugfixCommitThreshold: number;
+  revertCommitThreshold: number;
+  maxHotspotFilesShown: number;
+  bugfixKeywords: string[];
+}
+
+export interface FileHistorySignal {
+  filename: string;
+  recentCommits: number;
+  recentChurn: number;
+  bugfixCommits: number;
+  revertCommits: number;
+  lastTouchedDaysAgo?: number;
+  reasons: string[];
+}
+
+export interface HistoryRiskSummary {
+  enabled: boolean;
+  available: boolean;
+  mode: HistoryMode;
+  lookbackDays: number;
+  skippedReason?: string;
+  hotspotFiles: FileHistorySignal[];
+}
+
+export interface ArchitectureDocGroup {
+  id: string;
+  label?: string;
+  paths: string[];
+  appliesTo: string[];
+}
+
+export interface ArchitectureContextConfig {
+  docs: ArchitectureDocGroup[];
+}
+
+export interface ArchitectureConfig {
+  enabled: boolean;
+  mode: ArchitectureMode;
+  strict: boolean;
+  maxDocChars: number;
+  maxDiffChars: number;
+  includePrBody: boolean;
+  requireMappedDocs: boolean;
+  maxFindingsShown: number;
+  context: ArchitectureContextConfig;
+  severityWeights: Record<ArchitectureSeverity, number>;
+}
+
+export interface ArchitectureFinding {
+  severity: ArchitectureSeverity;
+  docId: string;
+  docPath?: string;
+  changedFiles: string[];
+  title: string;
+  evidence: string;
+  recommendation: string;
+}
+
+export interface ArchitectureAssessment {
+  enabled: boolean;
+  available: boolean;
+  mode: ArchitectureMode;
+  skippedReason?: string;
+  docsEvaluated: string[];
+  changedFilesEvaluated: string[];
+  adherenceScore?: number;
+  driftRiskScore?: number;
+  findings: ArchitectureFinding[];
+}
+
 export interface ReviewerMappings {
   auth: string[];
   payments: string[];
@@ -74,6 +165,8 @@ export interface RiskConfig {
   reviewers: ReviewerMappings;
   mode: JudgeMode;
   llm: LlmConfig;
+  history: HistoryConfig;
+  architecture: ArchitectureConfig;
 }
 
 export interface PartialRiskConfig {
@@ -83,6 +176,11 @@ export interface PartialRiskConfig {
   reviewers?: Partial<Record<keyof ReviewerMappings, string[]>>;
   mode?: JudgeMode;
   llm?: Partial<LlmConfig>;
+  history?: Partial<HistoryConfig>;
+  architecture?: Partial<Omit<ArchitectureConfig, "context" | "severityWeights">> & {
+    context?: Partial<ArchitectureContextConfig>;
+    severityWeights?: Partial<Record<ArchitectureSeverity, number>>;
+  };
 }
 
 export interface RiskDriver {
@@ -107,6 +205,8 @@ export interface RiskResult {
     deletedFiles: number;
     testsChanged: boolean;
   };
+  history?: HistoryRiskSummary;
+  architecture?: ArchitectureAssessment;
 }
 
 export interface LlmAssessment {

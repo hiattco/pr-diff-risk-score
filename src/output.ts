@@ -16,8 +16,12 @@ export function serializeRiskResult(result: RiskResult): string {
 
   const orderedResult = {
     score: result.score,
+    slopScore: result.slopScore,
+    overallScore: result.overallScore,
     level: result.level,
     drivers: orderedDrivers,
+    slopDrivers: result.slopDrivers,
+    recommendedLabels: result.recommendedLabels,
     reviewerAreas: result.reviewerAreas,
     reviewGuidance: result.reviewGuidance,
     stats: orderedStats

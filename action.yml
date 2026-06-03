@@ -18,6 +18,9 @@ inputs:
     description: Path to an optional YAML configuration file.
     required: false
     default: .github/pr-risk-score.yml
+  mode:
+    description: Risk judge mode. One of heuristic, llm, or hybrid.
+    required: false
 outputs:
   risk-score:
     description: The computed risk score from 1 to 10.
@@ -25,6 +28,12 @@ outputs:
     description: The computed risk level.
   json:
     description: JSON object with full risk computation result.
+  slop-score:
+    description: The computed review-quality / slop score from 1 to 10.
+  overall-score:
+    description: The max combined review burden score from 1 to 10.
+  risk-labels:
+    description: Comma-separated recommended labels for review workflows.
 runs:
   using: node24
   main: dist/index.js

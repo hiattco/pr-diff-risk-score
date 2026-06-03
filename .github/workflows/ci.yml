@@ -44,7 +44,7 @@ jobs:
           llm-model: openrouter/owl-alpha
 
   risk-score-comment:
-    if: github.event_name == 'pull_request_target'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -55,20 +55,10 @@ jobs:
       OPENAI_BASE_URL: ${{ vars.OPENAI_BASE_URL || 'https://openrouter.ai/api/v1' }}
     steps:
       - uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-      - name: Force LLM model override for legacy action revision
-        run: |
-          cat > .github/pr-risk-score-override.yml <<'YAML'
-          llm:
-            enabled: true
-            provider: openai
-            model: openrouter/owl-alpha
-          YAML
-      - uses: hiattco/pr-diff-risk-score@main
+      - uses: ./
         with:
           github-token: ${{ github.token }}
           comment-mode: update
           fail-threshold: "0"
           mode: ${{ secrets.OPENROUTER_API_KEY != '' && 'hybrid' || 'heuristic' }}
-          config-path: .github/pr-risk-score-override.yml
+          llm-model: openrouter/owl-alpha

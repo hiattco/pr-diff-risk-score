@@ -40,11 +40,13 @@ afterEach(async () => {
   });
 });
 
-async function startOpenAiCompatibleServer(responseContent: string): Promise<{ readonly baseUrl: string; readonly body: unknown }> {
+async function startOpenAiCompatibleServer(responseContent: string, expectedPath = "/v1/chat/completions"): Promise<{ readonly baseUrl: string; readonly body: unknown; readonly calledPath: string | null }> {
   let requestBody: unknown;
+  let calledPath: string | null = null;
 
   server = http.createServer((request, response) => {
-    if (request.method !== "POST" || request.url !== "/v1/chat/completions") {
+    calledPath = request.url ?? null;
+    if (request.method !== "POST" || request.url !== expectedPath) {
       response.writeHead(404);
       response.end();
       return;
@@ -79,6 +81,9 @@ async function startOpenAiCompatibleServer(responseContent: string): Promise<{ r
     baseUrl: `http://127.0.0.1:${address.port}/v1`,
     get body(): unknown {
       return requestBody;
+    },
+    get calledPath(): string | null {
+      return calledPath;
     }
   };
 }
@@ -183,6 +188,65 @@ describe("LLM analysis", () => {
       model: "openrouter/owl-alpha",
       response_format: { type: "json_object" }
     });
+  });
+
+  it("uses LLM_MODEL environment variable when config omits model", async () => {
+    const remote = await startOpenAiCompatibleServer(
+      JSON.stringify({
+        score: 9,
+        level: "Critical",
+        summary: "Repository model variable is in use.",
+        reviewGuidance: ["Confirm no regressions in token handling."],
+        recommendedLabels: ["llm:env-model"],
+        reviewerAreas: ["backend/security"]
+      })
+    );
+    const config = mergeConfig({
+      llm: {
+        enabled: true,
+        model: undefined
+      }
+    });
+    const baseline = scorePullRequest(files, config);
+
+    const result = await analyzePullRequestWithLlm(files, baseline, config, "llm", {
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: remote.baseUrl,
+      LLM_MODEL: "repo/vars-model"
+    });
+
+    expect(result.score).toBe(9);
+    expect(result.reviewGuidance).toContain("LLM summary: Repository model variable is in use.");
+    expect(remote.body).toMatchObject({
+      model: "repo/vars-model"
+    });
+  });
+
+  it("uses OPENAI_BASE_URL environment variable for chat completion endpoint", async () => {
+    const remote = await startOpenAiCompatibleServer(
+      JSON.stringify({
+        score: 6,
+        level: "Medium",
+        summary: "Base URL override is in use.",
+        reviewGuidance: ["Verify model and base URL routing."]
+      }),
+      "/v1/custom/chat/completions"
+    );
+    const config = mergeConfig({
+      llm: {
+        enabled: true,
+        model: "repo/vars-model"
+      }
+    });
+    const baseline = scorePullRequest(files, config);
+
+    const result = await analyzePullRequestWithLlm(files, baseline, config, "llm", {
+      OPENAI_API_KEY: "test-key",
+      OPENAI_BASE_URL: `${remote.baseUrl}/custom`
+    });
+
+    expect(result.score).toBe(6);
+    expect(remote.calledPath).toBe("/v1/custom/chat/completions");
   });
 
   it("uses OpenRouter key fallback when OpenAI key is blank", async () => {

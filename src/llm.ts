@@ -95,6 +95,10 @@ function resolveBaseUrl(config: RiskConfig, env: Env): string {
   return config.llm.provider === "openrouter" ? "https://openrouter.ai/api/v1" : "https://api.openai.com/v1";
 }
 
+function resolveModel(config: RiskConfig, env: Env): string {
+  return config.llm.model ?? env.LLM_MODEL ?? "gpt-4o";
+}
+
 function changedFileSummary(file: ChangedFile): string {
   const patch = file.patch ? `\n${file.patch}` : "";
   return `File: ${file.filename}\nStatus: ${file.status}\nAdditions: ${file.additions}\nDeletions: ${file.deletions}${patch}`;
@@ -105,10 +109,11 @@ function buildDiffPrompt(files: readonly ChangedFile[], maxDiffChars: number): s
   return fullDiff.length > maxDiffChars ? `${fullDiff.slice(0, maxDiffChars)}\n\n[diff truncated]` : fullDiff;
 }
 
-function buildChatRequest(files: readonly ChangedFile[], baseline: RiskResult, config: RiskConfig): ChatRequest {
+function buildChatRequest(files: readonly ChangedFile[], baseline: RiskResult, config: RiskConfig, env: Env): ChatRequest {
   const maxDiffChars = config.llm.maxDiffChars ?? 6000;
+  const model = resolveModel(config, env);
   const baseRequest = {
-    model: config.llm.model ?? "gpt-4o",
+    model,
     temperature: 0,
     messages: [
       {
@@ -277,7 +282,7 @@ export async function analyzePullRequestWithLlm(
 
   const apiKey = resolveApiKey(env);
   const baseUrl = resolveBaseUrl(config, env);
-  const payload = buildChatRequest(files, baseline, config);
+  const payload = buildChatRequest(files, baseline, config, env);
   const client = new HttpClient("pr-diff-risk-score");
 
   try {

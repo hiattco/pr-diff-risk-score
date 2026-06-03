@@ -16,7 +16,7 @@ export function resolveJudgeMode(actionModeInput: string, configMode: string, co
   }
 
   if (config.llm.enabled) {
-    throw new Error("LLM and hybrid judge modes are not implemented yet.");
+    return mode;
   }
 
   core.warning("judge mode is llm/hybrid but llm is disabled; falling back to heuristic.");

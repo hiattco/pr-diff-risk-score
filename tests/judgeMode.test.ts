@@ -11,16 +11,14 @@ describe("judge mode configuration", () => {
     expect(config.llm.enabled).toBe(false);
   });
 
-  it("rejects unsupported llm mode when enabled in config", () => {
+  it("resolves llm mode when enabled in config", () => {
     const config = mergeConfig({
       llm: {
         enabled: true
       }
     });
 
-    expect(() => resolveJudgeMode("llm", config.mode, config)).toThrowError(
-      "LLM and hybrid judge modes are not implemented yet."
-    );
+    expect(resolveJudgeMode("llm", config.mode, config)).toBe("llm");
   });
 
   it("falls back to heuristic when llm mode is requested but disabled", () => {

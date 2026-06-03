@@ -5,6 +5,7 @@ import path from "node:path";
 import yaml from "js-yaml";
 import { renderRiskComment } from "./comment";
 import { getPullRequestContext, listChangedFiles, updateRiskComment, createRiskComment } from "./github";
+import { analyzePullRequestWithLlm } from "./llm";
 import { mergeConfig } from "./rules";
 import { scorePullRequest } from "./riskScorer";
 import { resolveJudgeMode } from "./judge";
@@ -53,7 +54,8 @@ export async function run(): Promise<void> {
   const config = mergeConfig(loadConfig(configPath));
   const judgeMode = resolveJudgeMode(judgeModeInput, config.mode, config);
   const files = await listChangedFiles(octokit, prContext);
-  const result = scorePullRequest(files, config);
+  const heuristicResult = scorePullRequest(files, config);
+  const result = await analyzePullRequestWithLlm(files, heuristicResult, config, judgeMode);
   const comment = renderRiskComment(result);
   core.info(`Using judge mode: ${judgeMode}.`);
 

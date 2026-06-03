@@ -119,7 +119,7 @@ describe("LLM analysis", () => {
       mode: "hybrid",
       llm: {
         enabled: true,
-        model: "moonshotai/kimi-k2.6:free",
+        model: "openrouter/owl-alpha",
         maxDiffChars: 80,
         requireJson: true
       }
@@ -139,7 +139,7 @@ describe("LLM analysis", () => {
     expect(result.reviewGuidance).toContain("Verify access-control tests cover admin role changes.");
     expect(result.drivers.map((driver) => driver.key)).toContain("llmAssessment");
     expect(remote.body).toMatchObject({
-      model: "moonshotai/kimi-k2.6:free",
+      model: "openrouter/owl-alpha",
       response_format: { type: "json_object" }
     });
   });
